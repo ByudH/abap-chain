@@ -5,5 +5,6 @@ INTERFACE zif_ai_types
   types ty_agent_id type c length 32.
   " TODO: Add custom types for ZCL_AI_GRAPH_STATE class
   "Comment test
+  "Comment test
 
 ENDINTERFACE.
