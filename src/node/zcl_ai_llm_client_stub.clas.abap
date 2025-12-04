@@ -3,11 +3,11 @@ CLASS zcl_ai_llm_client_stub DEFINITION
   FINAL
   CREATE PUBLIC .
   PUBLIC SECTION.
-      methods generate_completion
-        importing
-          prompt type string
-        returning
-          value(completion) type string.
+    CLASS-METHODS generate_completion
+      IMPORTING
+        prompt            TYPE string
+      RETURNING
+        VALUE(completion) TYPE string.
   PROTECTED SECTION.
   PRIVATE SECTION.
 ENDCLASS.
