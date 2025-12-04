@@ -31,4 +31,7 @@ CLASS zcl_ai_node_base IMPLEMENTATION.
     state_output = state_input.
     state_output-messages = state_input-messages && |Base Node { me->node_id } of agent { me->agent_id } executed. No concrete implementation.|.
   ENDMETHOD.
+  METHOD zif_ai_node~get_node_id.
+    node_id = me->node_id.
+  ENDMETHOD.
 ENDCLASS.
