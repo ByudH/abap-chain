@@ -14,13 +14,11 @@ CLASS zcl_ai_tool_base DEFINITION
     METHODS get_name
       RETURNING VALUE(rv_name) TYPE string.
 
-
     METHODS get_description
       RETURNING VALUE(rv_description) TYPE string.
 
 
   PROTECTED SECTION.
-
     METHODS:
 
       do_execute
@@ -30,7 +28,6 @@ CLASS zcl_ai_tool_base DEFINITION
                   ev_output TYPE string
         RAISING   cx_root,
 
-
       log_call_stub
         IMPORTING
           iv_input  TYPE string
@@ -38,15 +35,11 @@ CLASS zcl_ai_tool_base DEFINITION
           iv_status TYPE string
           iv_error  TYPE string OPTIONAL.
 
-
     DATA mv_name TYPE string.
     DATA mv_description TYPE string.
 
-
   PRIVATE SECTION.
 ENDCLASS.
-
-
 
 CLASS zcl_ai_tool_base IMPLEMENTATION.
 
@@ -62,7 +55,6 @@ CLASS zcl_ai_tool_base IMPLEMENTATION.
     rv_description = mv_description.
   ENDMETHOD.
 
-
   METHOD do_execute.
     " ------------------------------------------------------------
     " Default implementation – concrete tools should redefine this
@@ -74,7 +66,6 @@ CLASS zcl_ai_tool_base IMPLEMENTATION.
     " ------------------------------------------------------------
     " wraps do_execute with added logging and error handling
     " ------------------------------------------------------------
-
     DATA lv_output TYPE string.
     DATA lv_status TYPE string VALUE 'SUCCESS'.
     DATA lv_error  TYPE string.
@@ -100,7 +91,6 @@ CLASS zcl_ai_tool_base IMPLEMENTATION.
 
   ENDMETHOD.
 
-
   METHOD log_call_stub.
     " ------------------------------------------------------------
     " Logging stub for PoC:
@@ -110,5 +100,4 @@ CLASS zcl_ai_tool_base IMPLEMENTATION.
     "   - attach RUN_STEP_ID / AGENT_RUN_ID
     " ------------------------------------------------------------
   ENDMETHOD.
-
 ENDCLASS.
