@@ -56,12 +56,12 @@ CLASS zcl_ai_agent IMPLEMENTATION.
   ENDMETHOD.
   METHOD add_edge.
     " need to make sure the source_node already exists
-    DATA(edge_list) = me->graph_structure[ source_node_id = source_node->node_id ]-next_nodes.
+    ASSIGN me->graph_structure[ source_node_id = source_node->node_id ]-next_nodes TO FIELD-SYMBOL(<edge_list>).
     INSERT VALUE #(
       target_node_id = target_node->node_id
       target_node    = target_node
       condition      = condition
-    ) INTO TABLE edge_list.
+    ) INTO TABLE <edge_list>.
 
   ENDMETHOD.
   METHOD execute_graph.
