@@ -1,8 +1,8 @@
 INTERFACE zif_ai_node
   PUBLIC .
-  methods execute
-    importing
-      state_input type ref to ZCL_AI_GRAPH_STATE
-    returning
-      value(state_output) type ref to ZCL_AI_GRAPH_STATE.
+  METHODS execute
+    IMPORTING
+      state_input         TYPE REF TO zcl_ai_graph_state
+    RETURNING
+      VALUE(state_output) TYPE REF TO zcl_ai_graph_state.
 ENDINTERFACE.
