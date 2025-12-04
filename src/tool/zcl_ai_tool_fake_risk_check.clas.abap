@@ -5,7 +5,7 @@ CLASS zcl_ai_tool_fake_risk_check DEFINITION
 
   PUBLIC SECTION.
 
-  METHODS constructor
+    METHODS constructor
       IMPORTING
         iv_name TYPE string.
 
@@ -20,11 +20,14 @@ ENDCLASS.
 
 CLASS zcl_ai_tool_fake_risk_check IMPLEMENTATION.
 
-    METHOD constructor.
-        super->constructor( iv_name = iv_name ).
-    ENDMETHOD.
+  METHOD constructor.
+    super->constructor(
+        iv_name        = 'FAKE_TABLE_INFO'
+        iv_description = 'Returns mock metadata about an ABAP table (fields, rows, basic info).'
+        ).
+  ENDMETHOD.
 
-    METHOD do_execute.
-        ev_output = |[Tool { mv_name }]: Mock risk check: Risk level LOW, no critical findings.| .
-    ENDMETHOD.
+  METHOD do_execute.
+    ev_output = |[Tool { mv_name }]: Mock risk check: Risk level LOW, no critical findings.| .
+  ENDMETHOD.
 ENDCLASS.
