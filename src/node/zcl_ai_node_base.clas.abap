@@ -10,6 +10,8 @@ CLASS zcl_ai_node_base DEFINITION
     " TODO: Add attributes for tools
 
     "Declare constructor
+    "mahdi
+    "Wenjie
     METHODS constructor
       IMPORTING
         node_id  TYPE zif_ai_types=>ty_node_id
@@ -22,7 +24,9 @@ ENDCLASS.
 
 
 
-CLASS zcl_ai_node_base IMPLEMENTATION.
+CLASS ZCL_AI_NODE_BASE IMPLEMENTATION.
+
+
   METHOD constructor.
     me->node_id = node_id.
     me->agent_id = agent_id.
