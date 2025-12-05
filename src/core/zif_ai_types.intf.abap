@@ -42,4 +42,33 @@ INTERFACE zif_ai_types
     WITH UNIQUE KEY source_node_id.
 
 
+
+  " -------------------------------
+  " Test Lukas Hager
+  TYPES: BEGIN OF ty_edge_lh,
+           source_node_id TYPE ty_node_id,
+           target_node_id TYPE ty_node_id,
+           target_node    TYPE REF TO zif_ai_node,
+           condition      TYPE string,
+           condition_value TYPE string,
+           priority       TYPE i,
+         END OF ty_edge_lh.
+
+  TYPES tt_edge_lh TYPE STANDARD TABLE OF ty_edge_lh WITH DEFAULT KEY.
+
+  " Node registry entry: id + node ref
+  TYPES: BEGIN OF ty_node_entry_lh,
+           node_id TYPE ty_node_id,
+           node    TYPE REF TO zif_ai_node,
+         END OF ty_node_entry_lh.
+
+  TYPES tt_node_registry_lh TYPE STANDARD TABLE OF ty_node_entry_lh
+                         WITH DEFAULT KEY.
+
+
+CONSTANTS:
+    gc_cond_always     TYPE string VALUE 'ALWAYS',
+    gc_cond_on_control TYPE string VALUE 'ON_CONTROL'.
+
+
 ENDINTERFACE.
