@@ -15,7 +15,7 @@ CLASS zcl_ai_agent_builder DEFINITION
     " First added node becomes start node by default (unless overridden)
     METHODS add_node
       IMPORTING
-        io_node TYPE REF TO zcl_ai_node_base
+        io_node TYPE REF TO zif_ai_node
       RETURNING
         VALUE(ro_builder) TYPE REF TO zcl_ai_agent_builder.
 
@@ -57,7 +57,7 @@ CLASS zcl_ai_agent_builder DEFINITION
     " Attach a registered tool to a specific node (if node supports tools)
     METHODS attach_tool_to_node
       IMPORTING
-        io_node      TYPE REF TO zcl_ai_node_base
+        io_node      TYPE REF TO zif_ai_node
         iv_tool_name TYPE string
       RETURNING
         VALUE(ro_builder) TYPE REF TO zcl_ai_agent_builder.
@@ -95,7 +95,7 @@ CLASS zcl_ai_agent_builder IMPLEMENTATION.
     DATA ls_entry TYPE zif_ai_types=>ty_node_entry_lh.
 
     " Get the node's ID from the base class
-    ls_entry-node_id = io_node->node_id .
+    ls_entry-node_id = io_node->get_node_id( ).
     ls_entry-node    = io_node.
 
     APPEND ls_entry TO mt_nodes.
