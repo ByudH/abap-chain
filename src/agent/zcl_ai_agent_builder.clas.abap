@@ -65,7 +65,8 @@ CLASS zcl_ai_agent_builder DEFINITION
     " Finalize – create the zcl_ai_agent with nodes, edges, tools
     METHODS build
       RETURNING
-        VALUE(ro_agent) TYPE REF TO zcl_ai_agent_lh.
+        VALUE(ro_agent) TYPE REF TO zcl_ai_agent_lh
+      RAISING zcx_ai_agent_error.
 
   PRIVATE SECTION.
 
@@ -192,6 +193,31 @@ CLASS zcl_ai_agent_builder IMPLEMENTATION.
     "  - mv_start_node_id exists in mt_nodes
     "  - each edge source/target exists in mt_nodes
     "
+    " Situation 1: Must have at least one node
+    IF mt_nodes IS INITIAL.
+      RAISE EXCEPTION TYPE zcx_ai_agent_error
+        EXPORTING text = 'Agent must contain at least one node.'.
+    ENDIF.
+
+    " Situation 2: Check that start node exists
+    IF mv_start_node_id IS INITIAL OR
+       NOT line_exists( mt_nodes[ node_id = mv_start_node_id ] ).
+      RAISE EXCEPTION TYPE zcx_ai_agent_error
+        EXPORTING text = |Start node ID "{ mv_start_node_id }" does not exist in nodes|.
+    ENDIF.
+
+    " Situation 3: Verify edges have valid source and target nodes
+    LOOP AT mt_edges INTO DATA(ls_edge).
+      IF NOT line_exists( mt_nodes[ node_id = ls_edge-source_node_id ] ).
+        RAISE EXCEPTION TYPE zcx_ai_agent_error
+          EXPORTING text = |Edge source node "{ ls_edge-source_node_id }" not found in nodes|.
+      ENDIF.
+
+      IF NOT line_exists( mt_nodes[ node_id = ls_edge-target_node_id ] ).
+        RAISE EXCEPTION TYPE zcx_ai_agent_error
+          EXPORTING text = |Edge target node "{ ls_edge-target_node_id }" not found in nodes|.
+      ENDIF.
+    ENDLOOP.
 
     ro_agent = zcl_ai_agent_lh=>create(
                  iv_agent_name    = mv_agent_name

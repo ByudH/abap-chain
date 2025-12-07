@@ -45,4 +45,8 @@ CLASS zcl_ai_node_base_lh IMPLEMENTATION.
     " not implemented
   ENDMETHOD.
 
+  METHOD zif_ai_node~get_node_id.
+     node_id = node_id.
+  ENDMETHOD.
+
 ENDCLASS.

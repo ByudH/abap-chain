@@ -12,7 +12,7 @@ ENDCLASS.
 
 CLASS zcx_ai_agent_error IMPLEMENTATION.
   METHOD constructor ##ADT_SUPPRESS_GENERATION.
-    super->constructor( textid = '000' ).
+    super->constructor( ).
     me->text_to_show = text.
   ENDMETHOD.
 ENDCLASS.

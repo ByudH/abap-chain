@@ -3,9 +3,9 @@
  <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
   <asx:values>
    <VSEOCLASS>
-    <CLSNAME>ZCL_ABAPCHAIN_DEMO</CLSNAME>
+    <CLSNAME>ZCL_AI_PROMPT_LIBRARY</CLSNAME>
     <LANGU>E</LANGU>
-    <DESCRIPT>DEMO for ABAPCHAIN POC</DESCRIPT>
+    <DESCRIPT>Library for fetching and building prompts</DESCRIPT>
     <STATE>1</STATE>
     <CLSCCINCL>X</CLSCCINCL>
     <FIXPT>X</FIXPT>
