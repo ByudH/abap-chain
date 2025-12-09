@@ -6,9 +6,9 @@ CLASS zcl_ai_agent DEFINITION
   PUBLIC SECTION.
     DATA agent_name TYPE string READ-ONLY.
     DATA agent_id TYPE zif_ai_types=>ty_agent_id READ-ONLY.
-    DATA tool_registry_map TYPE zif_ai_types=>tool_registry_map READ-ONLY.
-    DATA graph_structure TYPE zif_ai_types=>graph_map READ-ONLY.
-    DATA graph_state TYPE zif_ai_types=>ty_graph_state READ-ONLY.
+    DATA tool_registry_map TYPE zif_ai_types=>th_tool_registry_map READ-ONLY.
+    DATA graph_structure TYPE zif_ai_types=>th_graph_map READ-ONLY.
+    DATA graph_state TYPE zif_ai_types=>ts_graph_state READ-ONLY.
     DATA start_node TYPE REF TO zif_ai_node READ-ONLY.
     METHODS constructor
       IMPORTING agent_name TYPE string.
@@ -70,7 +70,7 @@ CLASS zcl_ai_agent IMPLEMENTATION.
     " Execute from the start node
     DATA(next_node) = me->start_node.
     WHILE next_node IS BOUND.
-      me->graph_state = next_node->execute( state_input = me->graph_state ).
+      next_node->execute( CHANGING state = me->graph_state ).
       " Determine the next node based on conditions
       DATA(edge_list) = me->graph_structure[ source_node_id = next_node->get_node_id( ) ]-next_nodes.
       DATA(found_next) = abap_false.
