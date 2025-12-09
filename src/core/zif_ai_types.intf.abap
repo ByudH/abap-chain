@@ -1,44 +1,54 @@
 INTERFACE zif_ai_types
   PUBLIC .
+  "--------------------------------
+  " Naming Conventions:
+  " ty_  = Type
+  " ts_  = Structure
+  " tt_  = Table Type
+  " th_  = Hashed Table Type
+  " te_  = Enum Type
+  "--------------------------------
   "Shared types for node_id and agent_id
   TYPES ty_node_id TYPE uuid.
   TYPES ty_agent_id TYPE uuid. "Could be UUID
   " Shared Structure for the state
-  TYPES: BEGIN OF ty_graph_state,
+  TYPES: BEGIN OF ts_graph_state,
            messages       TYPE string,  "LLM responses / narrative"
            last_tool_name TYPE string,  "debug info"
            branch_label   TYPE string,  "routing: ON_LABEL"
            result_json    TYPE string,  "final output"
-         END OF ty_graph_state.
+         END OF ts_graph_state.
   " Shared Structure for tool registry
-  TYPES: BEGIN OF ty_tool_registry,
+  TYPES: BEGIN OF ts_tool_registry,
            tool_name        TYPE string,
            tool_endpoint    TYPE REF TO zif_ai_tool,
            tool_description TYPE string,
-         END OF ty_tool_registry.
+         END OF ts_tool_registry.
   " Hashed table for tools to look up by name
   " We could create a unique tool_id in case there are duplicate names
-  TYPES tool_registry_map
-    TYPE HASHED TABLE OF ty_tool_registry
+  TYPES th_tool_registry_map
+    TYPE HASHED TABLE OF ts_tool_registry
     WITH UNIQUE KEY tool_name.
   " Shared Structure for storing the graph structure as a hashed table
   " Definition of edge
-  TYPES: BEGIN OF ty_edge,
+  TYPES: BEGIN OF ts_edge,
            target_node_id TYPE ty_node_id,
            target_node    TYPE REF TO zif_ai_node, " direct reference to the node object
-           condition      TYPE string, " e.g. 'ALWAYS', 'ON_LABEL:success' Could also be a enum
-         END OF ty_edge.
+           condition      TYPE string,
+           condition_value type string,
+           priority type i, " e.g. 'ALWAYS', 'ON_LABEL:success' Could also be a enum
+         END OF ts_edge.
   " the list of edges
-  TYPES edge_list TYPE STANDARD TABLE OF ty_edge WITH EMPTY KEY.
+  TYPES tt_edge_list TYPE STANDARD TABLE OF ts_edge WITH EMPTY KEY.
   " the Map Entry
-  TYPES: BEGIN OF ty_graph_entry,
+  TYPES: BEGIN OF ts_graph_entry,
            source_node_id TYPE ty_node_id,
            source_node    TYPE REF TO zif_ai_node, " direct reference to the node object
-           next_nodes     TYPE edge_list,
-         END OF ty_graph_entry.
+           next_nodes     TYPE tt_edge_list,
+         END OF ts_graph_entry.
   " the Graph Map
-  TYPES graph_map
-    TYPE HASHED TABLE OF ty_graph_entry
+  TYPES th_graph_map
+    TYPE HASHED TABLE OF ts_graph_entry
     WITH UNIQUE KEY source_node_id.
 
 
