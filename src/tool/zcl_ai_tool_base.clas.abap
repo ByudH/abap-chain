@@ -8,14 +8,14 @@ CLASS zcl_ai_tool_base DEFINITION
 
     METHODS constructor
       IMPORTING
-        iv_name        TYPE string
-        iv_description TYPE string.
+        name        TYPE string
+        description TYPE string.
 
     METHODS get_name
-      RETURNING VALUE(rv_name) TYPE string.
+      RETURNING VALUE(name) TYPE string.
 
     METHODS get_description
-      RETURNING VALUE(rv_description) TYPE string.
+      RETURNING VALUE(description) TYPE string.
 
 
   PROTECTED SECTION.
@@ -23,20 +23,20 @@ CLASS zcl_ai_tool_base DEFINITION
 
       do_execute
         IMPORTING
-                  iv_input  TYPE string
+                  input  TYPE string
         EXPORTING
-                  ev_output TYPE string
+                  output TYPE string
         RAISING   cx_root,
 
       log_call_stub
         IMPORTING
-          iv_input  TYPE string
-          iv_output TYPE string
-          iv_status TYPE string
-          iv_error  TYPE string OPTIONAL.
+          input  TYPE string
+          output TYPE string
+          status TYPE string
+          error  TYPE string OPTIONAL.
 
-    DATA mv_name TYPE string.
-    DATA mv_description TYPE string.
+    DATA name TYPE string.
+    DATA description TYPE string.
 
   PRIVATE SECTION.
 ENDCLASS.
@@ -44,50 +44,57 @@ ENDCLASS.
 CLASS zcl_ai_tool_base IMPLEMENTATION.
 
   METHOD constructor.
-    mv_name = iv_name.
+    me->name = name.
+    me->description = description.
   ENDMETHOD.
 
   METHOD get_name.
-    rv_name = mv_name.
+    name = me->name.
   ENDMETHOD.
 
   METHOD get_description.
-    rv_description = mv_description.
+    description = me->description.
   ENDMETHOD.
 
   METHOD do_execute.
     " ------------------------------------------------------------
     " Default implementation – concrete tools should redefine this
     " ------------------------------------------------------------
-    ev_output = |[Tool { mv_name } has no implementation yet].|.
+    output = |[Tool { me->name } has no implementation yet].|.
   ENDMETHOD.
 
   METHOD zif_ai_tool~execute.
     " ------------------------------------------------------------
     " wraps do_execute with added logging and error handling
     " ------------------------------------------------------------
-    DATA lv_output TYPE string.
-    DATA lv_status TYPE string VALUE 'SUCCESS'.
-    DATA lv_error  TYPE string.
+    " No need to declare another local variable to save tool output
+    " DATA tool_output TYPE string.
+    DATA exit_status TYPE string VALUE 'SUCCESS'.
+    DATA error  TYPE string.
 
     TRY.
         do_execute(
           EXPORTING
-            iv_input  = iv_input
+            input  = input
           IMPORTING
-            ev_output = lv_output ).
+            output = output ).
       CATCH cx_root INTO DATA(lx).
-        lv_status = 'ERROR'.
-        lv_error  = lx->get_text( ).
+        exit_status = 'ERROR'.
+        error  = lx->get_text( ).
+        " return status 1 on error
+        status = 1.
     ENDTRY.
 
     log_call_stub(
-     iv_input  = iv_input
-     iv_output = lv_output
-     iv_status = lv_status
-     iv_error  = lv_error ).
+     input  = input
+     output = output
+     status = exit_status
+     error  = error ).
 
-    ev_output = lv_output.
+    " tool ouput is already assigned when executing the do_execute method
+    "output = tool_output.
+    " return status 0 on success
+    status = 0.
 
   ENDMETHOD.
 
