@@ -19,9 +19,9 @@ CLASS zcl_ai_node_base_lh DEFINITION
     " Hook for concrete nodes – must be implemented by subclasses
     METHODS do_execute
       IMPORTING
-        state_input         TYPE zif_ai_types=>ty_graph_state
+        state_input         TYPE zif_ai_types=>ts_graph_state
       RETURNING
-        VALUE(state_output) TYPE zif_ai_types=>ty_graph_state.
+        VALUE(state_output) TYPE zif_ai_types=>ts_graph_state.
 
   PRIVATE SECTION.
 ENDCLASS.
@@ -38,7 +38,9 @@ CLASS zcl_ai_node_base_lh IMPLEMENTATION.
   METHOD zif_ai_node~execute.
     " Central entry point used by orchestrator
     " Delegates to subclass-specific core implementation
-    state_output = me->do_execute( state_input ).
+
+    me->do_execute( state ).
+    " logging
   ENDMETHOD.
 
   METHOD do_execute.

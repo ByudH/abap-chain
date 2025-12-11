@@ -10,7 +10,7 @@ PUBLIC.
 
   " Get all tools registered on this node (for LLM -> tool selection, orchestration, etc.)
   METHODS get_tools
-    RETURNING VALUE(rt_tools) TYPE zif_ai_types=>tool_registry_map.
+    RETURNING VALUE(rt_tools) TYPE zif_ai_types=>th_tool_registry_map.
 
   " Optional: convenience method to get a single tool by name
   METHODS get_tool

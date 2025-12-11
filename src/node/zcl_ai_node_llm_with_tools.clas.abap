@@ -22,7 +22,7 @@ CLASS zcl_ai_node_llm_with_tools DEFINITION
     DATA mo_llm_client TYPE REF TO zcl_ai_llm_client_stub.
 
     " Local tool registry for this node (what the LLM can choose from)
-    DATA mt_tools TYPE zif_ai_types=>tool_registry_map.
+    DATA mt_tools TYPE zif_ai_types=>th_tool_registry_map.
 
     METHODS do_execute REDEFINITION.
 
@@ -42,7 +42,7 @@ CLASS zcl_ai_node_llm_with_tools IMPLEMENTATION.
 
 
   METHOD zif_ai_node_tool_aware~add_tool.
-    DATA ls_tool TYPE zif_ai_types=>ty_tool_registry.
+    DATA ls_tool TYPE zif_ai_types=>ts_tool_registry.
 
     ls_tool-tool_name        = iv_tool_name.
     ls_tool-tool_description = iv_description.
@@ -66,7 +66,7 @@ CLASS zcl_ai_node_llm_with_tools IMPLEMENTATION.
 
   METHOD do_execute.
 
-    DATA ls_state TYPE zif_ai_types=>ty_graph_state.
+    DATA ls_state TYPE zif_ai_types=>ts_graph_state.
     ls_state = state_input.
 
 
@@ -83,7 +83,7 @@ CLASS zcl_ai_node_llm_with_tools IMPLEMENTATION.
 
 
     " Pick an arbitrary tool (first in hashed table) for PoC
-    DATA ls_tool TYPE zif_ai_types=>ty_tool_registry.
+    DATA ls_tool TYPE zif_ai_types=>ts_tool_registry.
 
     LOOP AT mt_tools INTO ls_tool.
       EXIT.
@@ -140,7 +140,7 @@ CLASS zcl_ai_node_llm_with_tools IMPLEMENTATION.
         lv_llm_result.
 
     ls_state-result_json  = lv_llm_result.
-    ls_state-branch_label = ls_tool-tool_name.
+    ls_state-branch_label = ls_tool-tool_name. " last tool used?
 
     state_output = ls_state.
 
