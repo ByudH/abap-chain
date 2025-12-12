@@ -11,12 +11,6 @@ CLASS zcl_ai_tool_base DEFINITION
         name        TYPE string
         description TYPE string.
 
-    METHODS get_name
-      RETURNING VALUE(name) TYPE string.
-
-    METHODS get_description
-      RETURNING VALUE(description) TYPE string.
-
 
   PROTECTED SECTION.
     METHODS:
@@ -48,12 +42,17 @@ CLASS zcl_ai_tool_base IMPLEMENTATION.
     me->description = description.
   ENDMETHOD.
 
-  METHOD get_name.
+  METHOD zif_ai_tool~get_name.
     name = me->name.
   ENDMETHOD.
 
-  METHOD get_description.
+  METHOD zif_ai_tool~get_description.
     description = me->description.
+  ENDMETHOD.
+  METHOD zif_ai_tool~get_argument_metadata.
+    " Default: no arguments
+    " Subclasses override to define their argument structure
+    CLEAR arguments.
   ENDMETHOD.
 
   METHOD do_execute.
@@ -72,31 +71,44 @@ CLASS zcl_ai_tool_base IMPLEMENTATION.
     DATA exit_status TYPE string VALUE 'SUCCESS'.
     DATA error  TYPE string.
 
+
+    DATA(logger) = zcl_abapchain_logger=>get_instance( ).
+
     TRY.
-        do_execute(
-          EXPORTING
-            input  = input
-          IMPORTING
-            output = output ).
-      CATCH cx_root INTO DATA(lx).
-        exit_status = 'ERROR'.
-        error  = lx->get_text( ).
-        " return status 1 on error
-        status = 1.
+        logger->log_tool(
+          node_id   = '00000000000000000000000000000000' "unknown here
+          node_name = '(tool)'
+          tool_name = me->name  " or me->name
+          message   = |Tool execute start. input_len={ strlen( input ) }.|
+          severity  = if_bali_constants=>c_severity_information ).
+      CATCH cx_root.
     ENDTRY.
 
-    log_call_stub(
-     input  = input
-     output = output
-     status = exit_status
-     error  = error ).
+    TRY.
+      do_execute(
+        EXPORTING
+          input  = input
+        IMPORTING
+          output = output ).
+    CATCH cx_root INTO DATA(ex).
+      TRY.
+          logger->log_error(
+            message = |Tool "{ me->name }" failed: { ex->get_text( ) }| ).
+        CATCH cx_root.
+      ENDTRY.
+      RAISE EXCEPTION ex.
+  ENDTRY.
 
-    " tool ouput is already assigned when executing the do_execute method
-    "output = tool_output.
-    " return status 0 on success
-    status = 0.
-
-  ENDMETHOD.
+  TRY.
+      logger->log_tool(
+        node_id   = '00000000000000000000000000000000'
+        node_name = '(tool)'
+        tool_name = me->name
+        message   = |Tool execute end. output_len={ strlen( output ) }.|
+        severity  = if_bali_constants=>c_severity_information ).
+    CATCH cx_root.
+  ENDTRY.
+ENDMETHOD.
 
   METHOD log_call_stub.
     " ------------------------------------------------------------
@@ -107,4 +119,5 @@ CLASS zcl_ai_tool_base IMPLEMENTATION.
     "   - attach RUN_STEP_ID / AGENT_RUN_ID
     " ------------------------------------------------------------
   ENDMETHOD.
+
 ENDCLASS.
