@@ -1,3 +1,9 @@
+
+" !!!!!!!!!!!!!!!!!!! NO LONGER IN USE!!!!!!!!!!!!!!!!!!!!
+" DO NOT USE THIS CLASS - IT IS DEPRECATED
+" use ZCL_AI_AGENT instead
+" I leave it here till i tested everything - then i will delete this!
+
 CLASS zcl_ai_agent_lh DEFINITION
   PUBLIC
   FINAL
@@ -5,87 +11,91 @@ CLASS zcl_ai_agent_lh DEFINITION
 
   PUBLIC SECTION.
 
-    DATA agent_name     TYPE string                        READ-ONLY.
-    DATA agent_id       TYPE zif_ai_types=>ty_agent_id     READ-ONLY.
+    DATA agent_name      TYPE string                    READ-ONLY.
+    DATA agent_id        TYPE zif_ai_types=>ty_agent_id READ-ONLY.
 
-    " Design-time graph representation
-    DATA nodes          TYPE zif_ai_types=>tt_node_registry_lh READ-ONLY.
-    DATA edges          TYPE zif_ai_types=>tt_edge_lh         READ-ONLY.
-    DATA start_node_id  TYPE zif_ai_types=>ty_node_id      READ-ONLY.
+    " Runtime graph representation
+    DATA node_edge_graph TYPE zif_ai_types=>th_graph_map      READ-ONLY.
+    DATA start_node_id   TYPE zif_ai_types=>ty_node_id        READ-ONLY.
 
+    " Agent-level tool registry
+    DATA tools           TYPE zif_ai_types=>th_tool_registry_map READ-ONLY.
 
-    DATA tools TYPE zif_ai_types=>tool_registry_map READ-ONLY.
-
-    " Factory method – this is what the builder will call
+    " Factory method – called by the builder
     CLASS-METHODS create
       IMPORTING
-        iv_agent_name    TYPE string
-        it_nodes         TYPE zif_ai_types=>tt_node_registry_lh
-        it_edges         TYPE zif_ai_types=>tt_edge_lh
-        iv_start_node_id TYPE zif_ai_types=>ty_node_id
-        it_tools         TYPE zif_ai_types=>tool_registry_map OPTIONAL
+        agent_name      TYPE string
+        node_edge_graph TYPE zif_ai_types=>th_graph_map
+        start_node_id   TYPE zif_ai_types=>ty_node_id
+        tools           TYPE zif_ai_types=>th_tool_registry_map OPTIONAL
       RETURNING
-        VALUE(ro_agent)  TYPE REF TO zcl_ai_agent_lh.
-
+        VALUE(agent)    TYPE REF TO zcl_ai_agent_lh.
 
     METHODS run
       IMPORTING
-        is_initial_state      TYPE zif_ai_types=>ty_graph_state OPTIONAL
+        initial_state      TYPE zif_ai_types=>ts_graph_state OPTIONAL
       RETURNING
-        VALUE(rs_final_state) TYPE zif_ai_types=>ty_graph_state.
+        VALUE(final_state) TYPE zif_ai_types=>ts_graph_state.
 
   PRIVATE SECTION.
 
     METHODS constructor
       IMPORTING
-        iv_agent_name    TYPE string
-        it_nodes         TYPE zif_ai_types=>tt_node_registry_lh
-        it_edges         TYPE zif_ai_types=>tt_edge_lh
-        iv_start_node_id TYPE zif_ai_types=>ty_node_id
-        it_tools         TYPE zif_ai_types=>tool_registry_map.
+        agent_name      TYPE string
+        node_edge_graph TYPE zif_ai_types=>th_graph_map
+        start_node_id   TYPE zif_ai_types=>ty_node_id
+        tools           TYPE zif_ai_types=>th_tool_registry_map.
 
 ENDCLASS.
 
 CLASS zcl_ai_agent_lh IMPLEMENTATION.
 
-   METHOD run.
+ METHOD run.
+  DATA(logger) = zcl_abapchain_logger=>get_instance( ).
 
-    rs_final_state = zcl_ai_orchestrator=>run(
-                       it_nodes         = me->nodes
-                       it_edges         = me->edges
-                       iv_start_node_id = me->start_node_id
-                       is_initial_state = is_initial_state ).
+  TRY.
+      logger->start_run(
+        agent_name = me->agent_name
+        agent_id   = me->agent_id ).
+    CATCH cx_root.
+      " Logging must never break execution
+  ENDTRY.
 
-  ENDMETHOD.
+  final_state = zcl_ai_orchestrator=>run(
+                  node_edge_graph = me->node_edge_graph
+                  start_node_id   = me->start_node_id
+                  initial_state   = initial_state ).
+
+  TRY.
+      logger->save_and_get_handle( ).
+    CATCH cx_root.
+  ENDTRY.
+ENDMETHOD.
 
 
-   METHOD constructor.
-
+  METHOD constructor.
     " Basic metadata
-    me->agent_name = iv_agent_name.
+    me->agent_name = agent_name.
 
-    " Create a new agent_id – adjust if you have a different util
+    " Create a new agent_id
     me->agent_id = zcl_ai_utils=>generate_uuid( ).
 
     " Graph structure
-    me->nodes         = it_nodes.
-    me->edges         = it_edges.
-    me->start_node_id = iv_start_node_id.
+    me->node_edge_graph = node_edge_graph.
+    me->start_node_id   = start_node_id.
 
     " Tools
-    me->tools = it_tools.
-
+    me->tools = tools.
   ENDMETHOD.
 
 
   METHOD create.
-    CREATE OBJECT ro_agent
+    CREATE OBJECT agent
       EXPORTING
-        iv_agent_name    = iv_agent_name
-        it_nodes         = it_nodes
-        it_edges         = it_edges
-        iv_start_node_id = iv_start_node_id
-        it_tools         = it_tools.
+        agent_name      = agent_name
+        node_edge_graph = node_edge_graph
+        start_node_id   = start_node_id
+        tools           = tools.
   ENDMETHOD.
 
 ENDCLASS.
