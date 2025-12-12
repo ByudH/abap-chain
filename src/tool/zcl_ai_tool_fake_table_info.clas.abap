@@ -19,15 +19,14 @@ ENDCLASS.
 
 
 CLASS zcl_ai_tool_fake_table_info IMPLEMENTATION.
-
   METHOD constructor.
     super->constructor(
-        name         = 'FAKE_RISK_CHECK'
-        description    = 'Performs a mock risk assessment and returns a LOW/MEDIUM/HIGH risk label.'
-      ).
+        name        = 'FAKE_TABLE_INFO'
+        description = 'Returns mock metadata about an ABAP table (fields, rows, basic info).'
+        ).
   ENDMETHOD.
 
   METHOD do_execute.
-    output = |[Tool { name }]: Mock risk check: Risk level LOW, no critical findings.| .
+    output = |[Tool { me->name }]: Mock risk check: Risk level LOW, no critical findings.| .
   ENDMETHOD.
 ENDCLASS.
