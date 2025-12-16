@@ -163,7 +163,7 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
 
 
       " Sort edges by priority (lower = higher priority)
-      SORT edges_for_node BY priority ASCENDING.
+      SORT edges_for_node BY priority ASCENDING target_node_id ASCENDING.
 
       " 4) Determine next node:
       "    a) ON_CONTROL: condition_value = state.branch_label
@@ -189,6 +189,15 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
 
       " No matching edge -> terminate
       IF next_node_id IS INITIAL.
+
+        logger->log_orchestrator(
+              step         = step_count
+              current_node = current_node_id
+              next_node    = current_node_id
+              branch_label = state-branch_label
+              message      = |Stop: no outgoing edges.|
+              severity     = if_bali_constants=>c_severity_status ).
+
         EXIT.
       ENDIF.
 
