@@ -82,13 +82,13 @@ CLASS zcl_abapchain_logger DEFINITION
         cx_bali_runtime.
 
     " Helper function for Text conversion
-
     TYPES bali_text TYPE c LENGTH 200.
     METHODS to_bali_text
       IMPORTING
         text          TYPE string
       RETURNING
         VALUE(result) TYPE bali_text.
+
 
   PRIVATE SECTION.
 
@@ -135,6 +135,9 @@ CLASS zcl_abapchain_logger IMPLEMENTATION.
 
 
   METHOD start_run.
+
+
+
     " Create new log instance
     log = cl_bali_log=>create( ).
 
@@ -142,12 +145,15 @@ CLASS zcl_abapchain_logger IMPLEMENTATION.
     current_run_id = cl_system_uuid=>create_uuid_c32_static( ).
     current_agent  = agent_name.
 
+    DATA external_id TYPE string.
+    external_id = |{ agent_name }| && '|' && current_run_id.
+
     TRY.
         " Header: Object/Subobject/External ID
         DATA(header) = cl_bali_header_setter=>create(
                          object      = 'ZABAPCHAIN'
                          subobject   = 'AGENT_RUN'
-                         external_id = CONV #( current_run_id )
+                         external_id = CONV #( external_id )
                        )->set_expiry(
                          expiry_date       = CONV d( cl_abap_context_info=>get_system_date( ) + 7 )
                          keep_until_expiry = abap_true ).
@@ -267,10 +273,19 @@ CLASS zcl_abapchain_logger IMPLEMENTATION.
 
     handle = log->get_handle( ).
 
+    COMMIT WORK AND WAIT.
+
+    TRY.
+        DATA(log2) = cl_bali_log_db=>get_instance( )->load_log( handle = handle ).
+        write_console( |Reload OK by handle: { log2->get_handle( ) }| ).
+      CATCH cx_bali_runtime INTO DATA(lx).
+        write_console( |Reload FAILED by handle: { lx->get_text( ) }| ).
+    ENDTRY.
+
     " Console hint: how to view the log in Fiori / SLG1
     DATA(hint) =
-      |[ABAPCHAIN-LOGGER] Log saved. | &&
-      |Object="ZABAPCHAIN", Subobject="AGENT_RUN", External ID="{ current_run_id }".| &&
+      |[ABAPCHAIN-LOGGER] Log saved with handle { handle }. | &&
+      |Object="ZABAPCHAIN", Subobject="AGENT_RUN", External ID="{ current_agent }\|{ current_run_id }".| &&
       |\nView via Fiori app "Application Logs" (ID F1487) | &&
       |or via Analyze Application Log (SLG1) in on-prem systems.|.
 
