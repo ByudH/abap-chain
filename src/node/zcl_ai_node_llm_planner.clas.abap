@@ -9,14 +9,14 @@ CLASS zcl_ai_node_llm_planner DEFINITION
 
     METHODS constructor
       IMPORTING
-        node_id     TYPE zif_ai_types=>ty_node_id
-        agent_id    TYPE zif_ai_types=>ty_agent_id
-        name        TYPE string
-        llm_client  TYPE REF TO zcl_ai_llm_client_stub OPTIONAL.
+        node_id    TYPE zif_ai_types=>ty_node_id
+        agent_id   TYPE zif_ai_types=>ty_agent_id
+        name       TYPE string
+        llm_client TYPE REF TO zcl_ai_llm_client OPTIONAL.
 
   PROTECTED SECTION.
     DATA name       TYPE string.
-    DATA llm_client TYPE REF TO zcl_ai_llm_client_stub.
+    DATA llm_client TYPE REF TO zcl_ai_llm_client.
 
     " Catalog injected by builder (all tools known to agent)
     DATA tool_catalog TYPE zif_ai_types=>th_tool_registry_map.
@@ -29,7 +29,7 @@ CLASS zcl_ai_node_llm_planner DEFINITION
 
     METHODS pick_tool_heuristic
       IMPORTING
-        state TYPE zif_ai_types=>ts_graph_state
+        state            TYPE zif_ai_types=>ts_graph_state
       RETURNING
         VALUE(tool_name) TYPE string.
 ENDCLASS.
@@ -64,8 +64,10 @@ CLASS zcl_ai_node_llm_planner IMPLEMENTATION.
     " - Else pick first tool from catalog (if any)
 
     DATA messages_upper TYPE string.
-    messages_upper = to_upper( state-messages ).
+    "messages_upper = to_upper( state-messages ).
 
+    messages_upper = state-messages.
+    TRANSLATE messages_upper TO UPPER CASE.
 
     " TODO: TODO: Use LLM to determine tool to use
     " TODO: Use LLM to determine tool parameters to use
@@ -114,14 +116,29 @@ CLASS zcl_ai_node_llm_planner IMPLEMENTATION.
 
     " If a tool was just executed, decide whether to finish.
     " Minimal policy: after one tool call, end the run (for now).
-    IF state-last_tool_name IS NOT INITIAL.
-      state-messages = state-messages &&
-        cl_abap_char_utilities=>newline &&
-        |[Planner { name }] Tool "{ state-last_tool_name }" already used. Ending.|.
+*    IF state-last_tool_name IS NOT INITIAL.
+*      state-messages = state-messages &&
+*        cl_abap_char_utilities=>newline &&
+*        |[Planner { name }] Tool "{ state-last_tool_name }" already used. Ending.|.
+*
+*      state-branch_label = 'END'.
+*      RETURN.
+*    ENDIF.
 
-      state-branch_label = 'END'.
+    " Presentation policy: do 2 tools, then FINAL
+    IF state-last_tool_name = 'table_info'.
+      state-branch_label   = 'TOOL'.
+      state-last_tool_name = 'risk_check'.
+      state-messages = state-messages && cl_abap_char_utilities=>newline &&
+        |[Planner { name }] Next: tool "risk_check".|.
+      RETURN.
+    ELSEIF state-last_tool_name = 'risk_check'.
+      state-branch_label = 'FINAL'.
+      state-messages = state-messages && cl_abap_char_utilities=>newline &&
+        |[Planner { name }] Done with tools. Routing to FINAL.|.
       RETURN.
     ENDIF.
+
 
     " Decide next tool:
     DATA(next_tool) = pick_tool_heuristic( state ).
