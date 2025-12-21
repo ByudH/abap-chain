@@ -107,19 +107,21 @@ CLASS zcl_ai_tool_table_info IMPLEMENTATION.
         " get_short_description returns a Translation Object. We need to ask for a specific language.
         " If no description exists on the field, this might return empty.
         short_description = table_field_content->get_short_description( ).
+        IF short_description IS INITIAL.
+          short_description = table_field_name.
+        ENDIF.
+          " 4. Append to Schema String
+          schema_text = schema_text && | - Field Name: { table_field_name } ({ type_in_string } { type_length }), Field Description: { short_description }\n|.
+        ENDLOOP.
 
-        " 4. Append to Schema String
-        schema_text = schema_text && | - { table_field_name } ({ type_in_string } { type_length }): { short_description }\n|.
-      ENDLOOP.
+      ELSE.
 
-    ELSE.
+        " !!!!! Functionality of getting types not work for cds views. !!!!
+        " -----------------------------------------------------------------
+        " Strategy B: Check if it is a CDS View Entity (I_View)
+        " -----------------------------------------------------------------
 
-      " !!!!! Functionality of getting types not work for cds views. !!!!
-      " -----------------------------------------------------------------
-      " Strategy B: Check if it is a CDS View Entity (I_View)
-      " -----------------------------------------------------------------
-
-      DATA(cds_view) = xco_cp_cds=>view_entity( CONV #( object_name ) ).
+        DATA(cds_view) = xco_cp_cds=>view_entity( CONV #( object_name ) ).
         " --- B1. Get Metadata (Type & Description) via Data Element ---
 
         IF cds_view->exists( ).
@@ -131,6 +133,13 @@ CLASS zcl_ai_tool_table_info IMPLEMENTATION.
           DATA(cds_view_fields) = cds_view->fields->all->get( ).
 
           DATA struct_descr TYPE REF TO cl_abap_structdescr.
+          TRY.
+              struct_descr ?= cl_abap_typedescr=>describe_by_name( object_name ).
+            CATCH cx_sy_move_cast_error.
+              RETURN. " Handle error
+          ENDTRY.
+
+          DATA(components) = struct_descr->get_components( ).
 
           LOOP AT cds_view_fields INTO DATA(cds_view_field).
             DATA(cds_view_field_name) = cds_view_field->name.
@@ -144,62 +153,65 @@ CLASS zcl_ai_tool_table_info IMPLEMENTATION.
             " For cds view field which is directly selected from a raw data table, the type is initial
             IF cds_view_field_type IS INITIAL.
               " if type is initial, we cannot determine anything, just print the field name
-              schema_text = schema_text && | - { cds_view_field_name } \n|.
-              CONTINUE.
-            ENDIF.
-            IF cds_view_field_type->is_data_element( ).
-              " 1. Get Data Element Name
-              data_element_name = cds_view_field_type->get_data_element( )->name.
+              " schema_text = schema_text && | - { cds_view_field_name } \n|.
+              READ TABLE components INTO DATA(component) WITH KEY name = cds_view_field_name.
+              type_in_string = component-type->type_kind.
+              type_length = component-type->length.
+              short_description = cds_view_field_name.
+            ELSE.
+              IF cds_view_field_type->is_data_element( ).
+                " 1. Get Data Element Name
+                data_element_name = cds_view_field_type->get_data_element( )->name.
 
-              " 2. Get Data Element Content
-              data_element_content = xco_cp_abap_dictionary=>data_element( data_element_name )->content( ).
+                " 2. Get Data Element Content
+                data_element_content = xco_cp_abap_dictionary=>data_element( data_element_name )->content( ).
 
-              " 3. Get Description (Logon Language)
-              DATA(data_element_description) = data_element_content->get_short_description( ).
-              IF data_element_description IS NOT INITIAL.
-                short_description = data_element_description.
-              ELSE.
-                short_description = cds_view_field_name.
-              ENDIF.
+                " 3. Get Description (Logon Language)
+                DATA(data_element_description) = data_element_content->get_short_description( ).
+                IF data_element_description IS NOT INITIAL.
+                  short_description = data_element_description.
+                ELSE.
+                  short_description = cds_view_field_name.
+                ENDIF.
 
-              " 4. Get Technical Type (Length/Type)
-              IF data_element_content->has_underlying_built_in_type( ).
-                built_in_type = data_element_content->get_underlying_built_in_type( ).
+                " 4. Get Technical Type (Length/Type)
+                IF data_element_content->has_underlying_built_in_type( ).
+                  built_in_type = data_element_content->get_underlying_built_in_type( ).
+                  type_in_string = built_in_type->type.
+                  type_length      = built_in_type->length.
+                ELSE.
+                  short_description = no_built_in_type.
+                ENDIF.
+
+              ELSEIF cds_view_field_type->is_built_in_type( ).
+                " Field is defined directly (e.g. cast( ... as abap.char(10) ))
+                built_in_type = cds_view_field_type->get_built_in_type( ).
                 type_in_string = built_in_type->type.
                 type_length      = built_in_type->length.
+                short_description = cds_view_field_name. " No DE description available for built-ins
               ELSE.
-                short_description = no_built_in_type.
+                type_in_string = 'OTHER'.
+                short_description     = cds_view_field_name.
               ENDIF.
-
-            ELSEIF cds_view_field_type->is_built_in_type( ).
-              " Field is defined directly (e.g. cast( ... as abap.char(10) ))
-              built_in_type = cds_view_field_type->get_built_in_type( ).
-              type_in_string = built_in_type->type.
-              type_length      = built_in_type->length.
-              short_description = cds_view_field_name. " No DE description available for built-ins
-            ELSE.
-              type_in_string = 'OTHER'.
-              short_description     = cds_view_field_name.
             ENDIF.
-
             " Append to Schema
-            schema_text = schema_text && | - { cds_view_field_name }: { short_description } ({ type_in_string } { type_length })\n|.
+            schema_text = schema_text && | - Field Name: { cds_view_field_name } ({ type_in_string } { type_length }), Field Description: { short_description } \n|.
           ENDLOOP.
         ENDIF.
-    ENDIF.
+      ENDIF.
 
-    " -----------------------------------------------------------------
-    " Final Output
-    " -----------------------------------------------------------------
-    IF object_found = abap_true.
-      output = schema_text.
+      " -----------------------------------------------------------------
+      " Final Output
+      " -----------------------------------------------------------------
+      IF object_found = abap_true.
+        output = schema_text.
 
-    ELSE.
-      output = |Error: Object '{ object_name }' not found. It is neither a released Table nor a CDS View.|.
-      RAISE EXCEPTION NEW zcx_ai_tool_error( output ).
-      RETURN.
-    ENDIF.
+      ELSE.
+        output = |Error: Object '{ object_name }' not found. It is neither a released Table nor a CDS View.|.
+        RAISE EXCEPTION NEW zcx_ai_tool_error( output ).
+        RETURN.
+      ENDIF.
 
-  ENDMETHOD.
+    ENDMETHOD.
 
 ENDCLASS.
