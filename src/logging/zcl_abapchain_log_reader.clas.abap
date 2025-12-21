@@ -15,7 +15,7 @@ CLASS zcl_abapchain_log_reader DEFINITION
         time_from           TYPE t DEFAULT '000000'
         date_to             TYPE d
         time_to             TYPE t DEFAULT '235959'
-        max_logs            TYPE if_bali_log_filter=>ty_max_log_number DEFAULT 50
+        max_logs            TYPE if_bali_log_filter=>ty_max_log_number DEFAULT 15
         out                 TYPE REF TO if_oo_adt_classrun_out
       RAISING
         cx_bali_runtime.
@@ -74,6 +74,7 @@ CLASS zcl_abapchain_log_reader IMPLEMENTATION.
     filter = filter->set_maximum_log_number(
                max_log_number = max_logs ).
 
+
     "2) Convert local date/time range to UTCLONG UTC timestamps
     "   (Filter internally converts UTCLONG -> date/time in system timezone, see your class)
     DATA(start_utc) = to_utclong( date = date_from time = time_from ).
@@ -83,24 +84,24 @@ CLASS zcl_abapchain_log_reader IMPLEMENTATION.
                start_time = start_utc
                end_time   = end_utc ).
 
-
     " for deubug only! remove !
     "filter = cl_bali_log_filter=>create( ).
     "filter = filter->set_maximum_log_number( max_log_number = 1 ).
 
     TRY.
         DATA(log_db) = cl_bali_log_db=>get_instance( ).
-        DATA(logs)   = log_db->load_logs_via_filter( filter ).
+*        DATA(logs)   = log_db->load_logs_via_filter( filter ).
+        DATA(logs) = log_db->load_logs_w_items_via_filter( filter ).
 
       CATCH cx_bali_runtime INTO DATA(lx_bali).
         out->write( |cx_bali_runtime: { lx_bali->get_text( ) }| ).
 
-        "Often contains the real reason (auth / invalid filter / DB issue)
+        "Often contains the real error reason (auth / invalid filter / DB issue)
         IF lx_bali->previous IS BOUND.
           out->write( |Previous: { lx_bali->previous->get_text( ) }| ).
         ENDIF.
 
-        "If it's a T100-based message, this helps a lot
+        "If it's a T100-based message
         TRY.
             DATA(t100) = CAST if_t100_message( lx_bali ).
             out->write( |T100: { t100->t100key-msgid } { t100->t100key-msgno }| ).
@@ -110,18 +111,13 @@ CLASS zcl_abapchain_log_reader IMPLEMENTATION.
         RAISE EXCEPTION lx_bali.
     ENDTRY.
 
-    "3) Load logs WITH items
-    "DATA(log_db) = cl_bali_log_db=>get_instance( ).
-
-    "DATA(logs)   = log_db->load_logs_w_items_via_filter( filter ).
-
-    "for debugging
-    "DATA(logs) = log_db->load_logs_via_filter( filter ).
 
     IF logs IS INITIAL.
       out->write( |No logs found for { object }/{ subobject } in the given range.| ).
       RETURN.
     ENDIF.
+
+
 
     LOOP AT logs INTO DATA(log).
       write_one_log( log = log out = out ).

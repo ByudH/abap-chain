@@ -137,6 +137,8 @@ CLASS zcl_abapchain_logger IMPLEMENTATION.
   METHOD start_run.
 
 
+    DATA ts TYPE timestampl.
+    GET TIME STAMP FIELD ts.
 
     " Create new log instance
     log = cl_bali_log=>create( ).
@@ -146,7 +148,8 @@ CLASS zcl_abapchain_logger IMPLEMENTATION.
     current_agent  = agent_name.
 
     DATA external_id TYPE string.
-    external_id = |{ agent_name }| && '|' && current_run_id.
+*    external_id = |{ agent_name }| && '|' && current_run_id.
+    external_id = |{ agent_name }| && '|' && |{ ts TIMESTAMP = ISO }| && current_run_id.
 
     TRY.
         " Header: Object/Subobject/External ID

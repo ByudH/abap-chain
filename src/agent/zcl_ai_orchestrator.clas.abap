@@ -171,6 +171,7 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
       CLEAR next_node_id.
 
       " First: ON_CONTROL
+      " TODO: normalize state-branch_label (to_upper either in node or here)
       LOOP AT edges_for_node INTO edge
            WHERE condition       = zif_ai_types=>gc_cond_on_control
              AND condition_value = state-branch_label.
@@ -190,13 +191,16 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
       " No matching edge -> terminate
       IF next_node_id IS INITIAL.
 
-        logger->log_orchestrator(
-              step         = step_count
-              current_node = current_node_id
-              next_node    = current_node_id
-              branch_label = state-branch_label
-              message      = |Stop: no outgoing edges.|
-              severity     = if_bali_constants=>c_severity_status ).
+        TRY.
+            logger->log_orchestrator(
+                  step         = step_count
+                  current_node = current_node_id
+                  next_node    = current_node_id
+                  branch_label = state-branch_label
+                  message      = |Stop: no outgoing edges.|
+                  severity     = if_bali_constants=>c_severity_status ).
+          CATCH cx_bali_runtime.
+        ENDTRY.
 
         EXIT.
       ENDIF.

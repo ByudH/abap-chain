@@ -1,9 +1,4 @@
 
-" !!!!!!!!!!!!!!!!!!! NO LONGER IN USE!!!!!!!!!!!!!!!!!!!!
-" DO NOT USE THIS CLASS - IT IS DEPRECATED
-" use ZCL_AI_AGENT instead
-" I leave it here till i tested everything - then i will delete this!
-
 CLASS zcl_ai_agent_lh DEFINITION
   PUBLIC
   FINAL
@@ -50,27 +45,28 @@ ENDCLASS.
 
 CLASS zcl_ai_agent_lh IMPLEMENTATION.
 
- METHOD run.
-  DATA(logger) = zcl_abapchain_logger=>get_instance( ).
+  METHOD run.
+    DATA(logger) = zcl_abapchain_logger=>get_instance( ).
 
-  TRY.
-      logger->start_run(
-        agent_name = me->agent_name
-        agent_id   = me->agent_id ).
-    CATCH cx_root.
-      " Logging must never break execution
-  ENDTRY.
+    TRY.
+        logger->start_run(
+          agent_name = me->agent_name
+          agent_id   = me->agent_id ).
+      CATCH cx_root INTO DATA(err).
+        logger->log_error( err->get_text( ) ).
+        " Logging must never break execution
+    ENDTRY.
 
-  final_state = zcl_ai_orchestrator=>run(
-                  node_edge_graph = me->node_edge_graph
-                  start_node_id   = me->start_node_id
-                  initial_state   = initial_state ).
+    final_state = zcl_ai_orchestrator=>run(
+                    node_edge_graph = me->node_edge_graph
+                    start_node_id   = me->start_node_id
+                    initial_state   = initial_state ).
 
-  TRY.
-      logger->save_and_get_handle( ).
-    CATCH cx_root.
-  ENDTRY.
-ENDMETHOD.
+    TRY.
+        logger->save_and_get_handle( ).
+      CATCH cx_root.
+    ENDTRY.
+  ENDMETHOD.
 
 
   METHOD constructor.
