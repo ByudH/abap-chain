@@ -19,6 +19,11 @@ CLASS zcl_ai_node_base DEFINITION
     METHODS do_execute
       CHANGING
         state TYPE zif_ai_types=>ts_graph_state.
+    "logging
+    METHODS log_message
+      IMPORTING
+        message      TYPE string
+        severity TYPE if_bali_constants=>ty_severity DEFAULT if_bali_constants=>c_severity_information.
   PRIVATE SECTION.
 
 ENDCLASS.
@@ -41,5 +46,17 @@ CLASS zcl_ai_node_base IMPLEMENTATION.
   ENDMETHOD.
   METHOD zif_ai_node~get_node_id.
     node_id = me->node_id.
+  ENDMETHOD.
+  METHOD log_message.
+  "implement logger
+    TRY.
+        DATA(logger) = zcl_abapchain_logger=>get_instance( ).
+        logger->log_node(
+          node_id  = me->node_id
+          message  = message
+          severity = severity
+        ).
+      CATCH cx_root.
+    ENDTRY.
   ENDMETHOD.
 ENDCLASS.

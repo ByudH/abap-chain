@@ -52,29 +52,51 @@ INTERFACE zif_ai_types
     TYPE HASHED TABLE OF ts_graph_entry
     WITH UNIQUE KEY source_node_id.
 
+" --- PERSISTENCE TYPES (For JSON Storage) ---
 
-
-  " -------------------------------
-  " Test Lukas Hager
-  TYPES: BEGIN OF ty_edge_lh,
-           source_node_id  TYPE ty_node_id,
-           target_node_id  TYPE ty_node_id,
-           target_node     TYPE REF TO zif_ai_node,
+  " 1. Edge Blueprint (No Object References)
+  TYPES: BEGIN OF ts_edge_blueprint,
+           target_node_id  TYPE ty_node_id,   " We only need the ID to link
            condition       TYPE string,
            condition_value TYPE string,
            priority        TYPE i,
-         END OF ty_edge_lh.
+         END OF ts_edge_blueprint.
 
-  TYPES tt_edge_lh TYPE STANDARD TABLE OF ty_edge_lh WITH DEFAULT KEY.
+  TYPES tt_edge_blueprint TYPE STANDARD TABLE OF ts_edge_blueprint WITH EMPTY KEY.
 
-  " Node registry entry: id + node ref
-  TYPES: BEGIN OF ty_node_entry_lh,
-           node_id TYPE ty_node_id,
-           node    TYPE REF TO zif_ai_node,
-         END OF ty_node_entry_lh.
+  " 2. Node Blueprint (Replaces Object with Class Name)
+  TYPES: BEGIN OF ts_node_blueprint,
+           node_id    TYPE ty_node_id,
+           class_name TYPE string,           " <--- THE FIX: Store 'ZCL_NODE_LLM', etc.
+           config     TYPE string,           " Optional: Node specific settings
+           edges      TYPE tt_edge_blueprint,
+         END OF ts_node_blueprint.
 
-  TYPES tt_node_registry_lh TYPE STANDARD TABLE OF ty_node_entry_lh
-                         WITH DEFAULT KEY.
+  " 3. The Full Map for Storage
+  TYPES tt_graph_blueprint TYPE STANDARD TABLE OF ts_node_blueprint WITH EMPTY KEY.
+
+
+  " -------------------------------
+*  " Test Lukas Hager
+*  TYPES: BEGIN OF ty_edge_lh,
+*           source_node_id  TYPE ty_node_id,
+*           target_node_id  TYPE ty_node_id,
+*           target_node     TYPE REF TO zif_ai_node,
+*           condition       TYPE string,
+*           condition_value TYPE string,
+*           priority        TYPE i,
+*         END OF ty_edge_lh.
+*
+*  TYPES tt_edge_lh TYPE STANDARD TABLE OF ty_edge_lh WITH DEFAULT KEY.
+*
+*  " Node registry entry: id + node ref
+*  TYPES: BEGIN OF ty_node_entry_lh,
+*           node_id TYPE ty_node_id,
+*           node    TYPE REF TO zif_ai_node,
+*         END OF ty_node_entry_lh.
+*
+*  TYPES tt_node_registry_lh TYPE STANDARD TABLE OF ty_node_entry_lh
+*                         WITH DEFAULT KEY.
 
   " =========================================================
   "  NEW TYPES AND CONSTANTS FOR ERROR HANDLING (REQUIRED BY ZCX_AI_AGENT_ERROR)

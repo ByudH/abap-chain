@@ -29,6 +29,9 @@ CLASS zcl_ai_tool_base DEFINITION
           status TYPE string
           error  TYPE string OPTIONAL.
 
+      METHODS define_argument_metadata
+        RETURNING VALUE(arguments) TYPE zcl_tool_schema=>tt_tool_arguments.
+
     DATA name TYPE string.
     DATA description TYPE string.
 
@@ -48,11 +51,6 @@ CLASS zcl_ai_tool_base IMPLEMENTATION.
 
   METHOD zif_ai_tool~get_description.
     description = me->description.
-  ENDMETHOD.
-  METHOD zif_ai_tool~get_argument_metadata.
-    " Default: no arguments
-    " Subclasses override to define their argument structure
-    CLEAR arguments.
   ENDMETHOD.
 
   METHOD do_execute.
@@ -110,6 +108,7 @@ CLASS zcl_ai_tool_base IMPLEMENTATION.
   ENDTRY.
 ENDMETHOD.
 
+
   METHOD log_call_stub.
     " ------------------------------------------------------------
     " Logging stub for PoC:
@@ -118,6 +117,17 @@ ENDMETHOD.
     "   - use https://help.sap.com/docs/sap-btp-abap-environment/abap-environment/create-new-application-log
     "   - attach RUN_STEP_ID / AGENT_RUN_ID
     " ------------------------------------------------------------
+  ENDMETHOD.
+
+  METHOD zif_ai_tool~get_argument_metadata.
+    " Delegate to protected method that subclasses can override
+    arguments = define_argument_metadata( ).
+  ENDMETHOD.
+
+  METHOD define_argument_metadata.
+    " Default: no arguments
+    " Subclasses override this to define their arguments
+    CLEAR arguments.
   ENDMETHOD.
 
 ENDCLASS.

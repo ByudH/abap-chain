@@ -9,11 +9,20 @@ CLASS zcl_ai_orchestrator DEFINITION
       IMPORTING
 *        it_nodes         TYPE zif_ai_types=>tt_node_registry_lh
 *        it_edges         TYPE zif_ai_types=>tt_edge_lh
+        iv_agent_id        TYPE zif_ai_types=>ty_agent_id
         node_edge_graph    TYPE zif_ai_types=>th_graph_map
         start_node_id      TYPE zif_ai_types=>ty_node_id
         initial_state      TYPE zif_ai_types=>ts_graph_state OPTIONAL
       RETURNING
         VALUE(final_state) TYPE zif_ai_types=>ts_graph_state.
+
+  PRIVATE SECTION.
+    " US2.3: Save the current graph state to the database
+    CLASS-METHODS save_checkpoint
+      IMPORTING
+        !iv_agent_id TYPE zif_ai_types=>ty_agent_id
+        !iv_node_id  TYPE zif_ai_types=>ty_node_id
+        !is_state    TYPE zif_ai_types=>ts_graph_state.
 
 ENDCLASS.
 
@@ -121,6 +130,16 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
           graph_entry-source_node->execute(
              CHANGING
                state = state ).
+
+          " --- US2.3: PERSISTENCE POINT ---
+          " Save state immediately after successful node execution to capture
+          " the latest changes (e.g., LLM responses or tool outputs).
+          zcl_ai_orchestrator=>save_checkpoint(
+            iv_agent_id = iv_agent_id
+            iv_node_id = current_node_id
+            is_state   = state
+          ).
+
         CATCH cx_root INTO DATA(ex).
           TRY.
               logger->log_error(
@@ -224,6 +243,41 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
 
     final_state = state.
 
+  ENDMETHOD.
+
+  METHOD save_checkpoint.
+    " US2.3: Implementation to persist state
+    DATA: ls_checkpoint TYPE zai_checkpoint.
+
+    " 1. Serialize the current state structure into a JSON string
+    " We use the standard JSON library to convert the state into a string format
+    DATA(lv_state_json) = /ui2/cl_json=>serialize( data = is_state ).
+
+    " 2. Prepare the database record
+    TRY.
+        ls_checkpoint-client        = sy-mandt.
+        " Generate a unique ID for this specific snapshot
+        ls_checkpoint-checkpoint_id = cl_system_uuid=>create_uuid_x16_static( ).
+
+        " --- Advanced Optimization: Mapping Agent ID ---
+        ls_checkpoint-agent_id      = iv_agent_id.
+
+        " Note: In your current static 'run' method, you might need a way to pass agent_id.
+        " For now, we focus on node and state.
+        ls_checkpoint-node_id       = iv_node_id.
+        GET TIME STAMP FIELD ls_checkpoint-timestamp.
+        ls_checkpoint-state_data    = lv_state_json.
+
+        " 3. Insert into the database table you created in Step 1
+        INSERT zai_checkpoint FROM @ls_checkpoint.
+
+        IF sy-subrc <> 0.
+          " Optional: Log failure if database insertion fails
+        ENDIF.
+
+      CATCH cx_uuid_error.
+        " Handle UUID generation exception if necessary
+    ENDTRY.
   ENDMETHOD.
 
 ENDCLASS.

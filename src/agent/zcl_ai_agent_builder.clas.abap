@@ -45,7 +45,7 @@ CLASS zcl_ai_agent_builder DEFINITION
       RETURNING
         VALUE(builder) TYPE REF TO zcl_ai_agent_builder.
 
-    " Register a tool at agent level (name + description + implementation)
+    " Register a tool at agent level
     METHODS add_tool
       IMPORTING
         alias          TYPE string OPTIONAL
@@ -76,7 +76,7 @@ CLASS zcl_ai_agent_builder DEFINITION
     " Runtime graph that the orchestrator will consume
     DATA node_edge_graph TYPE zif_ai_types=>th_graph_map.
 
-    " Agent-level tool registry (HASHED TABLE by tool_name)
+    " Agent-level tool registry
     DATA tools TYPE zif_ai_types=>th_tool_registry_map.
 
 ENDCLASS.
@@ -196,7 +196,6 @@ CLASS zcl_ai_agent_builder IMPLEMENTATION.
       entry-tool_description = description.
     ENDIF.
 
-
     entry-tool_endpoint    = tool.
 
     INSERT entry INTO TABLE tools.
@@ -276,9 +275,7 @@ CLASS zcl_ai_agent_builder IMPLEMENTATION.
         <edge>-target_node = <target_entry>-source_node.
 
       ENDLOOP.
-
     ENDLOOP.
-
 
     " 5) add all TOOLS to catalog aware nodes (ZCL_AI_NODE_TOOL specifically)
     LOOP AT node_edge_graph ASSIGNING FIELD-SYMBOL(<my_entry>).
@@ -308,10 +305,7 @@ CLASS zcl_ai_agent_builder IMPLEMENTATION.
         CATCH cx_sy_move_cast_error.
           " not tool-aware
       ENDTRY.
-
     ENDLOOP.
-
-
 
     " 6) Create agent
     agent = zcl_ai_agent_lh=>create(

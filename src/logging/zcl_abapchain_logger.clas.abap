@@ -136,7 +136,6 @@ CLASS zcl_abapchain_logger IMPLEMENTATION.
 
   METHOD start_run.
 
-
     DATA ts TYPE timestampl.
     GET TIME STAMP FIELD ts.
 
@@ -285,14 +284,13 @@ CLASS zcl_abapchain_logger IMPLEMENTATION.
         write_console( |Reload FAILED by handle: { lx->get_text( ) }| ).
     ENDTRY.
 
-    " Console hint: how to view the log in Fiori / SLG1
-    DATA(hint) =
-      |[ABAPCHAIN-LOGGER] Log saved with handle { handle }. | &&
-      |Object="ZABAPCHAIN", Subobject="AGENT_RUN", External ID="{ current_agent }\|{ current_run_id }".| &&
-      |\nView via Fiori app "Application Logs" (ID F1487) | &&
-      |or via Analyze Application Log (SLG1) in on-prem systems.|.
-
-    write_console( hint ).
+*    DATA(hint) =
+*      |[ABAPCHAIN-LOGGER] Log saved with handle { handle }. | &&
+*      |Object="ZABAPCHAIN", Subobject="AGENT_RUN", External ID="{ current_agent }\|{ current_run_id }".| &&
+*      |\nView via Fiori app "Application Logs" (ID F1487) | &&
+*      |or via Analyze Application Log (SLG1) in on-prem systems.|.
+*
+*    write_console( hint ).
   ENDMETHOD.
 
 
