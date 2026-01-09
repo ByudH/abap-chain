@@ -9,7 +9,7 @@ CLASS zcl_ai_orchestrator DEFINITION
       IMPORTING
 *        it_nodes         TYPE zif_ai_types=>tt_node_registry_lh
 *        it_edges         TYPE zif_ai_types=>tt_edge_lh
-        iv_agent_id        TYPE zif_ai_types=>ty_agent_id
+        agent_id        TYPE zif_ai_types=>ty_agent_id
         node_edge_graph    TYPE zif_ai_types=>th_graph_map
         start_node_id      TYPE zif_ai_types=>ty_node_id
         initial_state      TYPE zif_ai_types=>ts_graph_state OPTIONAL
@@ -135,7 +135,7 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
           " Save state immediately after successful node execution to capture
           " the latest changes (e.g., LLM responses or tool outputs).
           zcl_ai_orchestrator=>save_checkpoint(
-            iv_agent_id = iv_agent_id
+            iv_agent_id = agent_id
             iv_node_id = current_node_id
             is_state   = state
           ).

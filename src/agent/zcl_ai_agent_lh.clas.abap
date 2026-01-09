@@ -58,9 +58,10 @@ CLASS zcl_ai_agent_lh IMPLEMENTATION.
     ENDTRY.
 
     final_state = zcl_ai_orchestrator=>run(
-                    node_edge_graph = me->node_edge_graph
-                    start_node_id   = me->start_node_id
-                    initial_state   = initial_state ).
+      agent_id        = me->agent_id
+      node_edge_graph = me->node_edge_graph
+      start_node_id   = me->start_node_id
+      initial_state   = initial_state ).
 
     TRY.
         logger->save_and_get_handle( ).

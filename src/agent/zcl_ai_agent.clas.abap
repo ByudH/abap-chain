@@ -76,9 +76,10 @@ CLASS zcl_ai_agent IMPLEMENTATION.
   METHOD run.
     " add orchestrator implementation here
     zcl_ai_orchestrator=>run(
-                    node_edge_graph = me->graph_structure
-                    start_node_id   = me->start_node->get_node_id( )
-                    initial_state   = graph_state ).
+      agent_id        = me->agent_id
+      node_edge_graph = me->graph_structure
+      start_node_id   = me->start_node->get_node_id( )
+      initial_state   = graph_state ).
   ENDMETHOD.
   METHOD create.
     agent = NEW zcl_ai_agent(

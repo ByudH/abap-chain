@@ -53,7 +53,7 @@ CLASS lcl_test_orchestrator IMPLEMENTATION.
 
     " D. Execute the Orchestrator
     DATA(ls_final_state) = zcl_ai_orchestrator=>run(
-      iv_agent_id     = lv_test_agent_id
+      agent_id     = lv_test_agent_id
       node_edge_graph = lt_graph
       start_node_id   = lv_test_node_id
       initial_state   = VALUE #( messages = 'Start: ' )
