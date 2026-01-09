@@ -1,6 +1,7 @@
 CLASS zcl_ai_agent_builder DEFINITION
   PUBLIC
-  CREATE PUBLIC.
+  CREATE PUBLIC
+  GLOBAL FRIENDS zcl_ai_node_tool.
 
   PUBLIC SECTION.
 
@@ -68,6 +69,13 @@ CLASS zcl_ai_agent_builder DEFINITION
                 VALUE(agent) TYPE REF TO zcl_ai_agent_lh
       RAISING   zcx_ai_agent_error.
 
+    METHODS build_from_blueprint
+      IMPORTING
+                agent_blueprint TYPE zif_ai_types=>ts_agent_blueprint
+      RETURNING
+                VALUE(agent)    TYPE REF TO zcl_ai_agent_lh
+      RAISING   zcx_ai_agent_error.
+
   PRIVATE SECTION.
 
     DATA agent_name    TYPE string.
@@ -78,6 +86,20 @@ CLASS zcl_ai_agent_builder DEFINITION
 
     " Agent-level tool registry
     DATA tools TYPE zif_ai_types=>th_tool_registry_map.
+
+    METHODS restore_graph_from_blueprint
+      IMPORTING
+        graph_blueprint        TYPE zif_ai_types=>tt_graph_blueprint
+        agent_id               TYPE zif_ai_types=>ty_agent_id
+      RETURNING
+        VALUE(node_edge_graph) TYPE zif_ai_types=>th_graph_map.
+
+    METHODS restore_tools_from_blueprint
+      IMPORTING
+        tool_registry_blueprint TYPE zif_ai_types=>tt_tool_blueprints
+        agent_id                TYPE zif_ai_types=>ty_agent_id
+      RETURNING
+        VALUE(tools)            TYPE zif_ai_types=>th_tool_registry_map.
 
 ENDCLASS.
 
@@ -129,7 +151,7 @@ CLASS zcl_ai_agent_builder IMPLEMENTATION.
                           source_node_id = from_node_id
                           "source_node   is left initial, will be set by add_node
                           "next_nodes    is left INITIAL (empty table)
-                          ).
+      ).
       INSERT new_entry INTO TABLE node_edge_graph.
       READ TABLE node_edge_graph ASSIGNING <entry>
            WITH KEY source_node_id = from_node_id.
@@ -157,7 +179,7 @@ CLASS zcl_ai_agent_builder IMPLEMENTATION.
                           source_node_id = from_node_id
                           " source_node initial
                           " next_nodes  initial
-                        ).
+      ).
       INSERT new_entry INTO TABLE node_edge_graph.
       READ TABLE node_edge_graph ASSIGNING <entry>
            WITH KEY source_node_id = from_node_id.
@@ -309,12 +331,111 @@ CLASS zcl_ai_agent_builder IMPLEMENTATION.
 
     " 6) Create agent
     agent = zcl_ai_agent_lh=>create(
-               agent_name      = agent_name
-               node_edge_graph = node_edge_graph
-               start_node_id   = start_node_id
-               tools           = tools ).
+      agent_name      = agent_name
+      node_edge_graph = node_edge_graph
+      start_node_id   = start_node_id
+      tools           = tools ).
+
+*    " 7) save the agent definition into the agent def table
+*    TRY.
+*        zcl_ai_agent_repository=>save_agent_blueprint(
+*          agent_blueprint = agent->get_agent_blueprint( agent ) ).
+*      CATCH cx_sy_open_sql_db.
+*        " not able to serialize the agent definition
+*    ENDTRY.
 
   ENDMETHOD.
 
+  METHOD build_from_blueprint.
+    DATA(agent_id) = agent_blueprint-agent_id.
+    DATA(agent_name) = agent_blueprint-agent_name.
+    DATA(start_node_id) = agent_blueprint-start_node_id.
+    DATA(node_edge_graph) = restore_graph_from_blueprint(
+      graph_blueprint = agent_blueprint-graph_blueprint
+      agent_id        = agent_id ).
+    DATA(tools) = restore_tools_from_blueprint(
+      tool_registry_blueprint = agent_blueprint-tool_registry_blueprint
+      agent_id                = agent_id ).
+    agent = zcl_ai_agent_lh=>create(
+      agent_name      = agent_name
+      node_edge_graph = node_edge_graph
+      start_node_id   = start_node_id
+      tools           = tools ).
+
+    " assign the tool endpoint back to the tool node tool registry
+    LOOP AT agent_blueprint-graph_blueprint INTO DATA(node_blueprint).
+      IF node_blueprint-class_name = 'ZCL_AI_NODE_TOOL'.
+        DATA(tool_node) = node_edge_graph[ source_node_id = node_blueprint-node_id ]-source_node.
+        DATA tool_blueprints TYPE zif_ai_types=>tt_tool_blueprints.
+        xco_cp_json=>data->from_string( node_blueprint-config )->write_to( REF #( tool_blueprints ) ).
+
+        DATA tool_aware TYPE REF TO zif_ai_node_tool_aware.
+        tool_aware ?= tool_node.
+
+        LOOP AT tool_blueprints INTO DATA(tool_blueprint).
+          READ TABLE tools INTO DATA(tool_entry)
+               WITH KEY tool_name = tool_blueprint-tool_name.
+          IF sy-subrc = 0.
+            tool_aware->add_tool(
+              tool_name   = tool_entry-tool_name
+              tool        = tool_entry-tool_endpoint
+              description = tool_entry-tool_description ).
+          ENDIF.
+        ENDLOOP.
+      ENDIF.
+    ENDLOOP.
+
+    " set the agent id of the agent definition explicitly
+    agent->agent_id = agent_id.
+  ENDMETHOD.
+
+  METHOD restore_graph_from_blueprint.
+    DATA node_blueprint TYPE zif_ai_types=>ts_node_blueprint.
+    " first loop create nodes instances
+    LOOP AT graph_blueprint INTO node_blueprint.
+      DATA node TYPE REF TO zif_ai_node.
+      DATA graph_entry TYPE zif_ai_types=>ts_graph_entry.
+      CLEAR graph_entry.
+      CREATE OBJECT node TYPE (node_blueprint-class_name)
+               EXPORTING
+                 node_id   = node_blueprint-node_id
+                 agent_id = agent_id.
+      node->set_configuration( node_blueprint-config ).
+      graph_entry-source_node_id = node->get_node_id( ).
+      graph_entry-source_node = node.
+      INSERT graph_entry INTO TABLE node_edge_graph.
+    ENDLOOP.
+
+    " second loop connect edges
+    LOOP AT graph_blueprint INTO node_blueprint.
+      LOOP AT node_blueprint-next_nodes INTO DATA(edge_blueprint).
+        DATA edge TYPE zif_ai_types=>ts_edge.
+        CLEAR edge.
+        edge-target_node_id = edge_blueprint-target_node_id.
+        edge-condition = edge_blueprint-condition.
+        edge-condition_value = edge_blueprint-condition_value.
+        edge-priority = edge_blueprint-priority.
+        edge-target_node = node_edge_graph[ source_node_id = edge-target_node_id ]-source_node.
+        ASSIGN node_edge_graph[ source_node_id = node_blueprint-node_id ]-next_nodes TO FIELD-SYMBOL(<edge_list>).
+        INSERT edge INTO TABLE <edge_list>.
+      ENDLOOP.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD restore_tools_from_blueprint.
+    DATA tool_blueprint TYPE zif_ai_types=>ts_tool_blueprint.
+    LOOP AT tool_registry_blueprint INTO tool_blueprint.
+      DATA tool TYPE REF TO zif_ai_tool.
+      CREATE OBJECT tool TYPE (tool_blueprint-tool_class)
+               EXPORTING
+                 name   = tool_blueprint-tool_name
+                 description = tool_blueprint-tool_description.
+      INSERT VALUE #(
+      tool_name        = tool_blueprint-tool_name
+      tool_endpoint    = tool
+      tool_description = tool_blueprint-tool_description
+      ) INTO TABLE tools.
+    ENDLOOP.
+  ENDMETHOD.
 ENDCLASS.
 

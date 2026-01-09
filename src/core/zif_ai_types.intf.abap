@@ -72,14 +72,14 @@ INTERFACE zif_ai_types
            priority        TYPE i,
          END OF ts_edge_blueprint.
 
-  TYPES tt_edge_blueprint TYPE STANDARD TABLE OF ts_edge_blueprint WITH EMPTY KEY.
+  TYPES tt_edge_blueprints TYPE STANDARD TABLE OF ts_edge_blueprint WITH EMPTY KEY.
 
   " 2. Node Blueprint (Replaces Object with Class Name)
   TYPES: BEGIN OF ts_node_blueprint,
            node_id    TYPE ty_node_id,
            class_name TYPE string,           " <--- THE FIX: Store 'ZCL_NODE_LLM', etc.
            config     TYPE string,           " Optional: Node specific settings
-           edges      TYPE tt_edge_blueprint,
+           next_nodes      TYPE tt_edge_blueprints,
          END OF ts_node_blueprint.
 
   " 3. The Full Map for Storage
@@ -94,6 +94,15 @@ INTERFACE zif_ai_types
          END OF ts_tool_blueprint.
 
   TYPES: tt_tool_blueprints TYPE STANDARD TABLE OF ts_tool_blueprint WITH EMPTY KEY.
+
+  " struture for agent blueprint enabling a single return sturture and method nesting
+  TYPES: BEGIN OF ts_agent_blueprint,
+           agent_id        TYPE ty_agent_id,
+           agent_name      TYPE string,
+           start_node_id   TYPE ty_node_id,
+           graph_blueprint TYPE tt_graph_blueprint,
+           tool_registry_blueprint TYPE tt_tool_blueprints,
+         END OF ts_agent_blueprint.
 
 
 
@@ -119,8 +128,8 @@ INTERFACE zif_ai_types
     gc_workflow_status_finished TYPE string VALUE 'FINISHED',
     gc_workflow_status_error    TYPE string VALUE 'ERROR'.     " Status set on API failure
 
-    " HITL
-    CONSTANTS gc_workflow_status_waiting  TYPE string VALUE 'WAITING_FOR_HUMAN'.
+  " HITL
+  CONSTANTS gc_workflow_status_waiting  TYPE string VALUE 'WAITING_FOR_HUMAN'.
 
   " =========================================================
 
