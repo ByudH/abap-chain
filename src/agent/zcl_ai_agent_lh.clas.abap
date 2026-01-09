@@ -32,6 +32,16 @@ CLASS zcl_ai_agent_lh DEFINITION
       RETURNING
         VALUE(final_state) TYPE zif_ai_types=>ts_graph_state.
 
+    " Methods for serialization
+    METHODS get_agent_blueprint
+      IMPORTING
+        agent                   TYPE REF TO zcl_ai_agent_lh
+      EXPORTING
+        agent_id                TYPE string
+        agent_name              TYPE string
+        start_node_id           TYPE zif_ai_types=>ty_node_id
+        graph_blueprint         TYPE zif_ai_types=>tt_graph_blueprint
+        tool_registry_blueprint TYPE zif_ai_types=>tt_tool_blueprints.
   PRIVATE SECTION.
 
     METHODS constructor
@@ -94,5 +104,48 @@ CLASS zcl_ai_agent_lh IMPLEMENTATION.
         start_node_id   = start_node_id
         tools           = tools.
   ENDMETHOD.
+
+  METHOD get_agent_blueprint.
+    agent_id = me->agent_id.
+    start_node_id = me->start_node_id.
+    agent_name = me->agent_name.
+    LOOP AT node_edge_graph INTO DATA(graph_entry).
+      DATA node_blueprint TYPE zif_ai_types=>ts_node_blueprint.
+      DATA edge_blueprints TYPE zif_ai_types=>tt_edge_blueprints.
+
+      CLEAR node_blueprint.
+      CLEAR edge_blueprints.
+
+      node_blueprint-node_id = graph_entry-source_node_id.
+      node_blueprint-class_name = graph_entry-source_node->get_node_type( ).
+      node_blueprint-config = graph_entry-source_node->get_configuration( ).
+
+      LOOP AT graph_entry-next_nodes INTO DATA(edge_entry).
+        DATA edge_blueprint TYPE zif_ai_types=>ts_edge_blueprint.
+
+        CLEAR edge_blueprint.
+
+        edge_blueprint-target_node_id = edge_entry-target_node_id.
+        edge_blueprint-condition = edge_entry-condition.
+        edge_blueprint-condition_value = edge_entry-condition_value.
+        edge_blueprint-priority = edge_entry-priority.
+        APPEND edge_blueprint TO edge_blueprints.
+      ENDLOOP.
+
+      node_blueprint-edges = edge_blueprints.
+      APPEND node_blueprint TO graph_blueprint.
+
+    ENDLOOP.
+
+    LOOP AT tools INTO DATA(tool_entry).
+      DATA tool_blueprint TYPE zif_ai_types=>ts_tool_blueprint.
+      CLEAR tool_blueprint.
+      tool_blueprint-tool_name = tool_entry-tool_name.
+      tool_blueprint-tool_class = tool_entry-tool_endpoint->get_tool_type( ).
+      tool_blueprint-tool_description = tool_entry-tool_description.
+      APPEND tool_blueprint TO tool_registry_blueprint.
+    ENDLOOP.
+
+    ENDMETHOD.
 
 ENDCLASS.
