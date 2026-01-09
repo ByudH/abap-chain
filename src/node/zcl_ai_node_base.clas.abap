@@ -22,7 +22,7 @@ CLASS zcl_ai_node_base DEFINITION
     "logging
     METHODS log_message
       IMPORTING
-        message      TYPE string
+        message  TYPE string
         severity TYPE if_bali_constants=>ty_severity DEFAULT if_bali_constants=>c_severity_information.
   PRIVATE SECTION.
 
@@ -48,7 +48,7 @@ CLASS zcl_ai_node_base IMPLEMENTATION.
     node_id = me->node_id.
   ENDMETHOD.
   METHOD log_message.
-  "implement logger
+    "implement logger
     TRY.
         DATA(logger) = zcl_abapchain_logger=>get_instance( ).
         logger->log_node(
@@ -58,5 +58,10 @@ CLASS zcl_ai_node_base IMPLEMENTATION.
         ).
       CATCH cx_root.
     ENDTRY.
+  ENDMETHOD.
+
+  METHOD zif_ai_node~get_node_type.
+    DATA(type_descr) = cl_abap_typedescr=>describe_by_object_ref( me ).
+    node_type = type_descr->get_relative_name( ).
   ENDMETHOD.
 ENDCLASS.

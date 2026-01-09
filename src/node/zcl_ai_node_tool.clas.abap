@@ -15,6 +15,9 @@ CLASS zcl_ai_node_tool DEFINITION
         max_retries   TYPE i DEFAULT 2
         retry_delay_s TYPE i DEFAULT 0.
 
+    METHODS zif_ai_node~get_configuration REDEFINITION.
+    METHODS zif_ai_node~set_configuration REDEFINITION.
+
   PROTECTED SECTION.
     DATA name          TYPE string.
     DATA tools         TYPE zif_ai_types=>th_tool_registry_map.
@@ -26,12 +29,18 @@ CLASS zcl_ai_node_tool DEFINITION
   PRIVATE SECTION.
     METHODS execute_tool_with_retry
       IMPORTING
-        tool_entry TYPE zif_ai_types=>ts_tool_registry
-        input      TYPE string
+        tool_entry    TYPE zif_ai_types=>ts_tool_registry
+        input         TYPE string
       RETURNING
         VALUE(output) TYPE string
       RAISING
         cx_root.
+    TYPES: BEGIN OF ts_tool_node_config,
+             name          TYPE string,
+             tools         TYPE zif_ai_types=>tt_tool_blueprints,
+             max_retries   TYPE i,
+             retry_delay_s TYPE i,
+           END OF ts_tool_node_config.
 ENDCLASS.
 
 
@@ -146,9 +155,9 @@ CLASS zcl_ai_node_tool IMPLEMENTATION.
 
     TRY.
         logger->log_node(
-          node_id   = me->node_id
-          message   = |Executing tool "{ tool_entry-tool_name }" with retry.|
-          severity  = if_bali_constants=>c_severity_status ).
+          node_id  = me->node_id
+          message  = |Executing tool "{ tool_entry-tool_name }" with retry.|
+          severity = if_bali_constants=>c_severity_status ).
       CATCH cx_root.
     ENDTRY.
 
@@ -156,8 +165,8 @@ CLASS zcl_ai_node_tool IMPLEMENTATION.
 
     TRY.
         tool_output = execute_tool_with_retry(
-                        tool_entry = tool_entry
-                        input      = state-messages ).
+          tool_entry = tool_entry
+          input      = state-messages ).
       CATCH cx_root INTO DATA(ex).
         TRY.
             logger->log_error(
@@ -183,6 +192,30 @@ CLASS zcl_ai_node_tool IMPLEMENTATION.
     state-branch_label   = ''.               "'LLM' go back to LLM node
     state-last_tool_name = tool_entry-tool_name.
 
+  ENDMETHOD.
+
+  METHOD zif_ai_node~get_configuration.
+    DATA tool_node_config TYPE ts_tool_node_config.
+    tool_node_config-name          = name.
+    tool_node_config-max_retries   = max_retries.
+    tool_node_config-retry_delay_s = retry_delay_s.
+    LOOP AT tools INTO DATA(tool_entry).
+      DATA tool_blueprint TYPE zif_ai_types=>ts_tool_blueprint.
+      tool_blueprint-tool_name        = tool_entry-tool_name.
+      tool_blueprint-tool_description = tool_entry-tool_description.
+      tool_blueprint-tool_class = tool_entry-tool_endpoint->get_tool_type( ).
+      APPEND tool_blueprint TO tool_node_config-tools.
+    ENDLOOP.
+    configuration = xco_cp_json=>data->from_abap( tool_node_config )->to_string( ).
+  ENDMETHOD.
+
+  METHOD zif_ai_node~set_configuration.
+    DATA tool_node_config TYPE ts_tool_node_config.
+    xco_cp_json=>data->from_string( configuration )->write_to( REF #( tool_node_config ) ).
+    " For data consistency, leave assigning tools for agent.
+    name          = tool_node_config-name.
+    max_retries   = tool_node_config-max_retries.
+    retry_delay_s = tool_node_config-retry_delay_s.
   ENDMETHOD.
 
 ENDCLASS.

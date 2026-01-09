@@ -53,6 +53,11 @@ CLASS zcl_ai_tool_base IMPLEMENTATION.
     description = me->description.
   ENDMETHOD.
 
+  method zif_ai_tool~get_tool_type.
+    DATA(type_descr) = cl_abap_typedescr=>describe_by_object_ref( me ).
+    tool_type = type_descr->get_relative_name( ).
+  endmethod.
+
   METHOD do_execute.
     " ------------------------------------------------------------
     " Default implementation – concrete tools should redefine this

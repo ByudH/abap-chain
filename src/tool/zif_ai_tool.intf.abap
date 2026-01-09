@@ -14,7 +14,10 @@ INTERFACE zif_ai_tool
     RETURNING
       VALUE(description) TYPE string.
 
+  METHODS get_tool_type
+    RETURNING
+      VALUE(tool_type) TYPE string.
 
-   METHODS get_argument_metadata
+  METHODS get_argument_metadata
     RETURNING VALUE(arguments) TYPE zcl_tool_schema=>tt_tool_arguments.
 ENDINTERFACE.

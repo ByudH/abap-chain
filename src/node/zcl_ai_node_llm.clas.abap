@@ -9,10 +9,17 @@ CLASS zcl_ai_node_llm DEFINITION
       IMPORTING
         node_id  TYPE zif_ai_types=>ty_node_id
         agent_id TYPE zif_ai_types=>ty_agent_id.
+    METHODS zif_ai_node~get_configuration REDEFINITION.
+    METHODS zif_ai_node~set_configuration REDEFINITION.
   PROTECTED SECTION.
+    DATA name TYPE string VALUE 'LLM Node'.
     METHODS do_execute REDEFINITION.
   PRIVATE SECTION.
     DATA mo_llm_client TYPE REF TO zcl_ai_llm_client.
+    " Parser structure for configuration
+    TYPES: BEGIN OF ts_llm_node_config,
+             name TYPE string,
+           END OF ts_llm_node_config.
 
 ENDCLASS.
 
@@ -40,8 +47,8 @@ CLASS zcl_ai_node_llm IMPLEMENTATION.
 
         " 2) Call LLM client (REAL SAP AI Core)
         DATA(lv_llm_output) = mo_llm_client->generate_completion(
-              iv_system_prompt = lv_system_prompt
-              iv_user_prompt   = lv_user_prompt ).
+          iv_system_prompt = lv_system_prompt
+          iv_user_prompt   = lv_user_prompt ).
         " If successful, append the response to the state messages
         state-messages = state-messages && cl_abap_char_utilities=>newline &&
         |[LLM RESPONSE]| && cl_abap_char_utilities=>newline && lv_llm_output.
@@ -81,4 +88,20 @@ CLASS zcl_ai_node_llm IMPLEMENTATION.
 
     ENDTRY.
   ENDMETHOD.
+
+  METHOD zif_ai_node~get_configuration.
+    DATA llm_node_config TYPE ts_llm_node_config.
+    llm_node_config-name = name.
+    configuration = xco_cp_json=>data->from_abap( llm_node_config )->to_string( ).
+  ENDMETHOD.
+
+  METHOD zif_ai_node~set_configuration.
+    " Use a JSON parser to read configuration and access private and protected fields
+    DATA llm_node_config TYPE ts_llm_node_config.
+    xco_cp_json=>data->from_string( configuration )->write_to(
+      REF #( llm_node_config )
+    ).
+    name = llm_node_config-name.
+  ENDMETHOD.
+
 ENDCLASS.

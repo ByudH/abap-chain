@@ -13,11 +13,21 @@ INTERFACE zif_ai_types
   TYPES ty_agent_id TYPE uuid. "Could be UUID
   " Shared Structure for the state
   TYPES: BEGIN OF ts_graph_state,
-           messages       TYPE string,  "LLM responses / narrative"
-           last_tool_name TYPE string,  "debug info"
-           branch_label   TYPE string,  "routing: ON_LABEL"
-           result_json    TYPE string,  "final output"
-           status         TYPE string,  "workflow execution status (e.g., RETRYING, ERROR)"
+           messages              TYPE string,  "LLM responses / narrative"
+           last_tool_name        TYPE string,  "debug info"
+           branch_label          TYPE string,  "routing: ON_LABEL"
+           result_json           TYPE string,  "final output"
+           status                TYPE string,  "workflow execution status (e.g., RETRYING, ERROR)"
+
+           " HITL
+           hitl_correlation_id   TYPE uuid,
+           hitl_topic            TYPE string,
+           hitl_reason           TYPE string,
+           hitl_prompt           TYPE string,
+           hitl_response_schema  TYPE string,  " JSON schema string
+           hitl_primary_field    TYPE string,  " e.g. 'approved'
+           hitl_response_payload TYPE string,  " response JSON string
+
          END OF ts_graph_state.
   " Shared Structure for tool registry
   TYPES: BEGIN OF ts_tool_registry,
@@ -52,7 +62,7 @@ INTERFACE zif_ai_types
     TYPE HASHED TABLE OF ts_graph_entry
     WITH UNIQUE KEY source_node_id.
 
-" --- PERSISTENCE TYPES (For JSON Storage) ---
+  " --- PERSISTENCE TYPES (For JSON Storage) ---
 
   " 1. Edge Blueprint (No Object References)
   TYPES: BEGIN OF ts_edge_blueprint,
@@ -75,28 +85,17 @@ INTERFACE zif_ai_types
   " 3. The Full Map for Storage
   TYPES tt_graph_blueprint TYPE STANDARD TABLE OF ts_node_blueprint WITH EMPTY KEY.
 
+  " 1. TOOL BLUEPRINT (For Storage/DB/JSON)
+  TYPES: BEGIN OF ts_tool_blueprint,
+           tool_name        TYPE string,
+           tool_class       TYPE string,  " The ABAP Class name (e.g. 'ZCL_AI_TOOL_SEARCH')
+           tool_description TYPE string,
+*           configuration    TYPE string,  " Optional: JSON string for tool-specific settings
+         END OF ts_tool_blueprint.
 
-  " -------------------------------
-*  " Test Lukas Hager
-*  TYPES: BEGIN OF ty_edge_lh,
-*           source_node_id  TYPE ty_node_id,
-*           target_node_id  TYPE ty_node_id,
-*           target_node     TYPE REF TO zif_ai_node,
-*           condition       TYPE string,
-*           condition_value TYPE string,
-*           priority        TYPE i,
-*         END OF ty_edge_lh.
-*
-*  TYPES tt_edge_lh TYPE STANDARD TABLE OF ty_edge_lh WITH DEFAULT KEY.
-*
-*  " Node registry entry: id + node ref
-*  TYPES: BEGIN OF ty_node_entry_lh,
-*           node_id TYPE ty_node_id,
-*           node    TYPE REF TO zif_ai_node,
-*         END OF ty_node_entry_lh.
-*
-*  TYPES tt_node_registry_lh TYPE STANDARD TABLE OF ty_node_entry_lh
-*                         WITH DEFAULT KEY.
+  TYPES: tt_tool_blueprints TYPE STANDARD TABLE OF ts_tool_blueprint WITH EMPTY KEY.
+
+
 
   " =========================================================
   "  NEW TYPES AND CONSTANTS FOR ERROR HANDLING (REQUIRED BY ZCX_AI_AGENT_ERROR)
@@ -119,6 +118,9 @@ INTERFACE zif_ai_types
     gc_workflow_status_retrying TYPE string VALUE 'RETRYING',  " Status set on Timeout
     gc_workflow_status_finished TYPE string VALUE 'FINISHED',
     gc_workflow_status_error    TYPE string VALUE 'ERROR'.     " Status set on API failure
+
+    " HITL
+    CONSTANTS gc_workflow_status_waiting  TYPE string VALUE 'WAITING_FOR_HUMAN'.
 
   " =========================================================
 
