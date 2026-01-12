@@ -7,14 +7,16 @@ CLASS zcl_ai_node_base DEFINITION
     "Read-only attributes
     DATA node_id TYPE zif_ai_types=>ty_node_id READ-ONLY. "Needed depends on the edge structure
     DATA agent_id TYPE zif_ai_types=>ty_agent_id READ-ONLY.
+    DATA node_name TYPE string READ-ONLY.
     " TODO: Think about the shared functionality for all nodes, e.g. logging, error handling, etc.
 
     INTERFACES zif_ai_node.
     "Declare constructor
     METHODS constructor
       IMPORTING
-        node_id  TYPE zif_ai_types=>ty_node_id
-        agent_id TYPE zif_ai_types=>ty_agent_id.
+        node_id   TYPE zif_ai_types=>ty_node_id
+        agent_id  TYPE zif_ai_types=>ty_agent_id
+        node_name TYPE string.
   PROTECTED SECTION.
     METHODS do_execute
       CHANGING
@@ -34,6 +36,7 @@ CLASS zcl_ai_node_base IMPLEMENTATION.
   METHOD constructor.
     me->node_id = node_id.
     me->agent_id = agent_id.
+    me->node_name = node_name.
   ENDMETHOD.
   METHOD zif_ai_node~execute.
     do_execute(

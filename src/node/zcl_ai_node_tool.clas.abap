@@ -2,7 +2,8 @@ CLASS zcl_ai_node_tool DEFINITION
   PUBLIC
   INHERITING FROM zcl_ai_node_base
   FINAL
-  CREATE PUBLIC.
+  CREATE PUBLIC
+  GLOBAL FRIENDS zcl_ai_agent_builder.
 
   PUBLIC SECTION.
     INTERFACES zif_ai_node_tool_aware.
@@ -19,7 +20,7 @@ CLASS zcl_ai_node_tool DEFINITION
     METHODS zif_ai_node~set_configuration REDEFINITION.
 
   PROTECTED SECTION.
-    DATA name          TYPE string.
+*    DATA name          TYPE string.
     DATA tools         TYPE zif_ai_types=>th_tool_registry_map.
     DATA max_retries   TYPE i.
     DATA retry_delay_s TYPE i.
@@ -47,8 +48,8 @@ ENDCLASS.
 CLASS zcl_ai_node_tool IMPLEMENTATION.
 
   METHOD constructor.
-    super->constructor( node_id = node_id agent_id = agent_id ).
-    me->name = name.
+    super->constructor( node_id = node_id agent_id = agent_id node_name = name ).
+*    me->name = name.
     me->max_retries = max_retries.
     me->retry_delay_s = retry_delay_s.
   ENDMETHOD.
@@ -85,7 +86,7 @@ CLASS zcl_ai_node_tool IMPLEMENTATION.
           TRY.
               logger->log_tool(
                 node_id   = me->node_id
-                node_name = name
+                node_name = node_name
                 tool_name = tool_entry-tool_name
                 message   = |Attempt { attempt }/{ max_retries + 1 } start.|
                 severity  = if_bali_constants=>c_severity_information ).
@@ -101,7 +102,7 @@ CLASS zcl_ai_node_tool IMPLEMENTATION.
           TRY.
               logger->log_tool(
                 node_id   = me->node_id
-                node_name = name
+                node_name = node_name
                 tool_name = tool_entry-tool_name
                 message   = |Attempt { attempt } success.|
                 severity  = if_bali_constants=>c_severity_status ).
@@ -114,7 +115,7 @@ CLASS zcl_ai_node_tool IMPLEMENTATION.
           TRY.
               logger->log_tool(
                 node_id   = me->node_id
-                node_name = name
+                node_name = node_name
                 tool_name = tool_entry-tool_name
                 message   = |Attempt { attempt } failed: { last_ex->get_text( ) }|
                 severity  = if_bali_constants=>c_severity_warning ).
@@ -196,7 +197,7 @@ CLASS zcl_ai_node_tool IMPLEMENTATION.
 
   METHOD zif_ai_node~get_configuration.
     DATA tool_node_config TYPE ts_tool_node_config.
-    tool_node_config-name          = name.
+    tool_node_config-name          = node_name.
     tool_node_config-max_retries   = max_retries.
     tool_node_config-retry_delay_s = retry_delay_s.
     LOOP AT tools INTO DATA(tool_entry).
@@ -213,7 +214,7 @@ CLASS zcl_ai_node_tool IMPLEMENTATION.
     DATA tool_node_config TYPE ts_tool_node_config.
     xco_cp_json=>data->from_string( configuration )->write_to( REF #( tool_node_config ) ).
     " For data consistency, leave assigning tools for agent.
-    name          = tool_node_config-name.
+    node_name          = tool_node_config-name.
     max_retries   = tool_node_config-max_retries.
     retry_delay_s = tool_node_config-retry_delay_s.
   ENDMETHOD.

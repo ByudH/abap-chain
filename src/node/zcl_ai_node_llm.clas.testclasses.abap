@@ -12,7 +12,7 @@ CLASS ltcl_node_llm IMPLEMENTATION.
 
   METHOD verify_node_type.
     " 1. GIVEN: Create the instance
-    DATA(lo_cut) = NEW zcl_ai_node_llm( node_id = zcl_ai_utils=>generate_uuid( ) agent_id = zcl_ai_utils=>generate_uuid( ) ).
+    DATA(lo_cut) = NEW zcl_ai_node_llm( node_id = zcl_ai_utils=>generate_uuid( ) agent_id = zcl_ai_utils=>generate_uuid( ) name = 'LLM-Node' ).
 
     " 2. WHEN: Call the method
     DATA(lv_actual_type) = lo_cut->zif_ai_node~get_node_type( ).

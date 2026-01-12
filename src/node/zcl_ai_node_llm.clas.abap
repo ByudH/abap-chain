@@ -7,12 +7,13 @@ CLASS zcl_ai_node_llm DEFINITION
   PUBLIC SECTION.
     METHODS constructor
       IMPORTING
+        name     TYPE string
         node_id  TYPE zif_ai_types=>ty_node_id
         agent_id TYPE zif_ai_types=>ty_agent_id.
     METHODS zif_ai_node~get_configuration REDEFINITION.
     METHODS zif_ai_node~set_configuration REDEFINITION.
   PROTECTED SECTION.
-    DATA name TYPE string VALUE 'LLM Node'.
+*    DATA name TYPE string VALUE 'LLM Node'.
     METHODS do_execute REDEFINITION.
   PRIVATE SECTION.
     DATA mo_llm_client TYPE REF TO zcl_ai_llm_client.
@@ -27,8 +28,8 @@ ENDCLASS.
 
 CLASS zcl_ai_node_llm IMPLEMENTATION.
   METHOD constructor.
-    super->constructor( node_id = node_id agent_id = agent_id ).
-
+    super->constructor( node_id = node_id agent_id = agent_id node_name = name ).
+*    me->name = name.
     " Create real LLM client (SAP ISLM / AI Core)
     mo_llm_client = NEW zcl_ai_llm_client( ).
   ENDMETHOD.
@@ -91,7 +92,7 @@ CLASS zcl_ai_node_llm IMPLEMENTATION.
 
   METHOD zif_ai_node~get_configuration.
     DATA llm_node_config TYPE ts_llm_node_config.
-    llm_node_config-name = name.
+    llm_node_config-name = node_name.
     configuration = xco_cp_json=>data->from_abap( llm_node_config )->to_string( ).
   ENDMETHOD.
 
@@ -101,7 +102,7 @@ CLASS zcl_ai_node_llm IMPLEMENTATION.
     xco_cp_json=>data->from_string( configuration )->write_to(
       REF #( llm_node_config )
     ).
-    name = llm_node_config-name.
+    node_name = llm_node_config-name.
   ENDMETHOD.
 
 ENDCLASS.
