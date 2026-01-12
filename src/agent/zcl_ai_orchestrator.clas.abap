@@ -24,6 +24,15 @@ CLASS zcl_ai_orchestrator DEFINITION
         !iv_node_id  TYPE zif_ai_types=>ty_node_id
         !is_state    TYPE zif_ai_types=>ts_graph_state.
 
+    " US2.4 — Resume execution from a checkpoint
+    CLASS-METHODS resume_checkpoint
+      IMPORTING
+        iv_checkpoint_id TYPE zai_checkpoint-checkpoint_id
+      EXPORTING
+        ev_agent_id      TYPE zif_ai_types=>ty_agent_id
+        ev_node_id       TYPE zif_ai_types=>ty_node_id
+        es_state         TYPE zif_ai_types=>ts_graph_state.
+
 ENDCLASS.
 
 
@@ -279,5 +288,35 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
         " Handle UUID generation exception if necessary
     ENDTRY.
   ENDMETHOD.
+
+  METHOD resume_checkpoint.
+
+    DATA: ls_checkpoint TYPE zai_checkpoint,
+          lv_state_json TYPE string.
+
+    " 1) Load checkpoint
+   SELECT SINGLE *
+     FROM zai_checkpoint
+     WHERE checkpoint_id = @iv_checkpoint_id
+     INTO @ls_checkpoint.
+
+    IF sy-subrc <> 0.
+      RAISE EXCEPTION TYPE cx_sy_no_handler.
+    ENDIF.
+
+    " 2) Deserialize state
+    lv_state_json = ls_checkpoint-state_data.
+
+    /ui2/cl_json=>deserialize(
+      EXPORTING
+        json = lv_state_json
+      CHANGING
+        data = es_state ).
+
+    " 3) Restore execution pointers
+    ev_node_id  = ls_checkpoint-node_id.
+    ev_agent_id = ls_checkpoint-agent_id.
+
+    ENDMETHOD.
 
 ENDCLASS.
