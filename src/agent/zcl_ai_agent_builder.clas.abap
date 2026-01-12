@@ -1,7 +1,6 @@
 CLASS zcl_ai_agent_builder DEFINITION
   PUBLIC
-  CREATE PUBLIC
-  GLOBAL FRIENDS zcl_ai_node_tool.
+  CREATE PUBLIC.
 
   PUBLIC SECTION.
 
@@ -366,9 +365,10 @@ CLASS zcl_ai_agent_builder IMPLEMENTATION.
     LOOP AT agent_blueprint-graph_blueprint INTO DATA(node_blueprint).
       IF node_blueprint-class_name = 'ZCL_AI_NODE_TOOL'.
         DATA(tool_node) = node_edge_graph[ source_node_id = node_blueprint-node_id ]-source_node.
+        DATA tool_node_config TYPE zcl_ai_node_tool=>ts_tool_node_config.
         DATA tool_blueprints TYPE zif_ai_types=>tt_tool_blueprints.
-        xco_cp_json=>data->from_string( node_blueprint-config )->write_to( REF #( tool_blueprints ) ).
-
+        xco_cp_json=>data->from_string( node_blueprint-config )->write_to( REF #( tool_node_config ) ).
+        tool_blueprints = tool_node_config-tools.
         DATA tool_aware TYPE REF TO zif_ai_node_tool_aware.
         tool_aware ?= tool_node.
 
@@ -399,7 +399,8 @@ CLASS zcl_ai_agent_builder IMPLEMENTATION.
       CREATE OBJECT node TYPE (node_blueprint-class_name)
                EXPORTING
                  node_id   = node_blueprint-node_id
-                 agent_id = agent_id.
+                 agent_id = agent_id
+                 name = node_blueprint-node_name.
       node->set_configuration( node_blueprint-config ).
       graph_entry-source_node_id = node->get_node_id( ).
       graph_entry-source_node = node.
@@ -426,10 +427,15 @@ CLASS zcl_ai_agent_builder IMPLEMENTATION.
     DATA tool_blueprint TYPE zif_ai_types=>ts_tool_blueprint.
     LOOP AT tool_registry_blueprint INTO tool_blueprint.
       DATA tool TYPE REF TO zif_ai_tool.
-      CREATE OBJECT tool TYPE (tool_blueprint-tool_class)
-               EXPORTING
-                 name   = tool_blueprint-tool_name
-                 description = tool_blueprint-tool_description.
+      IF tool_blueprint-tool_class = to_upper( 'zcl_ai_tool_fake_table_info' ) OR tool_blueprint-tool_class = to_upper( 'zcl_ai_tool_fake_risk_check' ).
+        CREATE OBJECT tool TYPE (tool_blueprint-tool_class).
+      ELSE.
+
+        CREATE OBJECT tool TYPE (tool_blueprint-tool_class)
+                 EXPORTING
+                   name   = tool_blueprint-tool_name
+                   description = tool_blueprint-tool_description.
+      ENDIF.
       INSERT VALUE #(
       tool_name        = tool_blueprint-tool_name
       tool_endpoint    = tool

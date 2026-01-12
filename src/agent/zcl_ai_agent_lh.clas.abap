@@ -35,8 +35,6 @@ CLASS zcl_ai_agent_lh DEFINITION
 
     " Methods for serialization
     METHODS get_agent_blueprint
-      IMPORTING
-        agent                  TYPE REF TO zcl_ai_agent_lh
       RETURNING
         VALUE(agent_blueprint) TYPE zif_ai_types=>ts_agent_blueprint.
   PRIVATE SECTION.
@@ -129,7 +127,7 @@ CLASS zcl_ai_agent_lh IMPLEMENTATION.
         APPEND edge_blueprint TO edge_blueprints.
       ENDLOOP.
 
-      node_blueprint-edges = edge_blueprints.
+      node_blueprint-next_nodes = edge_blueprints.
       APPEND node_blueprint TO agent_blueprint-graph_blueprint.
 
     ENDLOOP.
