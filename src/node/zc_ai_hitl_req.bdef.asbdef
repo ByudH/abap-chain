@@ -1,0 +1,27 @@
+managed with additional save with full data
+implementation in class zbp_c_ai_hitl_req unique;
+strict ( 2 );
+
+define behavior for ZC_AI_HITL_REQ alias HitlReq
+persistent table zai_hitl_req
+lock master
+authorization master ( instance )
+//etag master <field_name>
+{
+  create ( authorization : global );
+  update;
+
+
+  determination set_created_audit on modify { create; }
+
+  static action Respond parameter ZA_AI_HITL_RESPONSE;
+
+  event HumanInputRequested parameter ZA_AI_HITL_REQUESTED;
+
+  field ( readonly )
+  CreatedAt, CreatedBy, RespondedAt, RespondedBy;
+
+
+  field ( readonly : update )
+  CorrelationId, ResponseSchema, PrimaryResultField;
+}

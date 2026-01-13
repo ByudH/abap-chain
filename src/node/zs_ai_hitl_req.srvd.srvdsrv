@@ -1,0 +1,4 @@
+@EndUserText.label: 'HITL API'
+define service ZS_AI_HITL_REQ {
+  expose ZC_AI_HITL_REQ_P as HitlReq;
+}

@@ -1,0 +1,11 @@
+projection;
+strict ( 2 );
+
+define behavior for ZC_AI_HITL_REQ_P //alias <alias_name>
+{
+  use create;
+  use update;
+
+  use action Respond;
+
+}

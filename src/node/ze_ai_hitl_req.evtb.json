@@ -1,0 +1,21 @@
+{
+  "formatVersion": "1",
+  "header": {
+    "description": "Event Binding for HITL",
+    "originalLanguage": "en",
+    "abapLanguageVersion": "cloudDevelopment"
+  },
+  "producerNamespace": "zabapchain",
+  "producer": "P38414A1BA3AD47F961DC654A940C6C8B",
+  "producerVersion": "0001",
+  "boName": "HumanInputRequest",
+  "boOperation": "request",
+  "producerType": "zabapchain.HumanInputRequest.request.v*",
+  "events": [
+    {
+      "eventVersion": "0001",
+      "entityName": "ZC_AI_HITL_REQ",
+      "entityEventName": "HUMANINPUTREQUESTED"
+    }
+  ]
+}
