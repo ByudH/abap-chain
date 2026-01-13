@@ -32,6 +32,12 @@ CLASS zcl_ai_node_llm_planner DEFINITION
         state            TYPE zif_ai_types=>ts_graph_state
       RETURNING
         VALUE(tool_name) TYPE string.
+
+    METHODS should_request_hitl
+      IMPORTING
+        state             TYPE zif_ai_types=>ts_graph_state
+      RETURNING
+        VALUE(needs_hitl) TYPE abap_bool.
 ENDCLASS.
 
 
@@ -39,7 +45,7 @@ ENDCLASS.
 CLASS zcl_ai_node_llm_planner IMPLEMENTATION.
 
   METHOD constructor.
-    super->constructor( node_id = node_id agent_id = agent_id ).
+    super->constructor( node_id = node_id agent_id = agent_id node_name = me->name ).
     me->name = name.
     me->llm_client = llm_client.
   ENDMETHOD.
@@ -133,9 +139,26 @@ CLASS zcl_ai_node_llm_planner IMPLEMENTATION.
         |[Planner { name }] Next: tool "risk_check".|.
       RETURN.
     ELSEIF state-last_tool_name = 'risk_check'.
-      state-branch_label = 'FINAL'.
+
+      " After risk check, require human approval (HITL) before final
+      state-branch_label = 'HITL'.
+
+
+
+      " (Optional) Pre-fill HITL prompt data in state so HumanInputNode can just persist it
+      state-hitl_topic           = 'ABAPCHAIN'.
+      state-hitl_reason          = 'Risk check completed; approval required to continue.'.
+      state-hitl_prompt          = 'Approve continuing with the operation?'.
+      state-hitl_primary_field   = 'approved'.
+      state-hitl_response_schema = '{ "type":"object", "properties": { "approved": { "type":"boolean" } }, "required": ["approved"] }'.
+
       state-messages = state-messages && cl_abap_char_utilities=>newline &&
-        |[Planner { name }] Done with tools. Routing to FINAL.|.
+        |[Planner { name }] Risk check done. Routing to HITL approval.|.
+
+*    state-branch_label = 'FINAL'.
+*      state-messages = state-messages && cl_abap_char_utilities=>newline &&
+*        |[Planner { name }] Done with tools. Routing to FINAL.|.
+
       RETURN.
     ENDIF.
 
@@ -168,6 +191,25 @@ CLASS zcl_ai_node_llm_planner IMPLEMENTATION.
       CATCH cx_root.
     ENDTRY.
 
+  ENDMETHOD.
+
+  METHOD should_request_hitl.
+    needs_hitl = abap_false.
+
+    DATA text TYPE string.
+    text = state-messages.
+    TRANSLATE text TO UPPER CASE.
+
+    " Heuristic triggers
+    IF text CS 'APPROVE'
+       OR text CS 'APPROVAL'
+       OR text CS 'HUMAN'
+       OR text CS 'CONFIRM'
+       OR text CS 'PROCEED'
+       OR text CS 'RISK'.
+      needs_hitl = abap_true.
+      RETURN.
+    ENDIF.
   ENDMETHOD.
 
 ENDCLASS.

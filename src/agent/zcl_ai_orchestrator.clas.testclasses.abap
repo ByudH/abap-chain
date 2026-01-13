@@ -42,6 +42,7 @@ CLASS lcl_test_orchestrator IMPLEMENTATION.
     DATA(lo_node) = NEW lcl_mock_node(
       node_id  = lv_test_node_id
       agent_id = lv_test_agent_id
+      node_name = 'Test'
     ).
 
     " C. Build the Graph structure: START -> END

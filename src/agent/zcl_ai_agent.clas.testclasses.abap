@@ -10,7 +10,7 @@ CLASS ltzcl_ai_agent_test DEFINITION FINAL FOR TESTING
       deserialize_blueprint_to_agent FOR TESTING RAISING cx_static_check.
     DATA:
       blueprint    TYPE zif_ai_types=>ts_agent_blueprint,
-      agent        TYPE REF TO zcl_ai_agent_lh,
+      agent        TYPE REF TO zcl_ai_agent,
       tool_table   TYPE REF TO zif_ai_tool,
       tool_risk    TYPE REF TO zif_ai_tool,
       agent_id     TYPE zif_ai_types=>ty_agent_id,
@@ -34,7 +34,7 @@ CLASS ltzcl_ai_agent_test IMPLEMENTATION.
     " B. Create Nodes
     " --- LLM Node ---
     llm_node = NEW zcl_ai_node_llm(
-      name = 'LLM-Node'
+      name     = 'LLM-Node'
       node_id  = llm_node_id
       agent_id = agent_id
     ).
@@ -244,7 +244,106 @@ CLASS ltzcl_ai_agent_test IMPLEMENTATION.
   METHOD deserialize_blueprint_to_agent.
     blueprint = agent->get_agent_blueprint( ).
     DATA(actual_agent) = builder->build_from_blueprint( blueprint ).
+    cl_abap_unit_assert=>assert_equals(
+      act = actual_agent->agent_id
+      exp = agent->agent_id
+      msg = 'Agent Id should be the same' ).
 
+    cl_abap_unit_assert=>assert_equals(
+      act = actual_agent->agent_id
+      exp = agent->agent_id
+      msg = 'Agent name should be the same' ).
+
+    cl_abap_unit_assert=>assert_equals(
+      act = actual_agent->start_node_id
+      exp = agent->start_node_id
+      msg = 'Start node id should be the same' ).
+
+    LOOP AT agent->tools INTO DATA(original_tool).
+      DATA(actual_tool) = actual_agent->tools[ tool_name = original_tool-tool_name ].
+      IF sy-subrc <> 0.
+        cl_abap_unit_assert=>fail( msg = |Tool { original_tool-tool_name } should exist in deserialized agent| ).
+      ENDIF.
+      cl_abap_unit_assert=>assert_equals(
+        act = actual_tool-tool_name
+        exp = original_tool-tool_name
+        msg = |Tool name { original_tool-tool_name } should match| ).
+      cl_abap_unit_assert=>assert_equals(
+        act = actual_tool-tool_description
+        exp = original_tool-tool_description
+        msg = |Tool description { original_tool-tool_description } should match| ).
+      cl_abap_unit_assert=>assert_equals(
+        act = actual_tool-tool_endpoint->get_tool_type( )
+        exp = original_tool-tool_endpoint->get_tool_type( )
+        msg = |Tool type should match| ).
+      cl_abap_unit_assert=>assert_equals(
+        act = actual_tool-tool_endpoint->get_name( )
+        exp = original_tool-tool_endpoint->get_name( )
+        msg = |Tool name should match| ).
+      cl_abap_unit_assert=>assert_equals(
+        act = actual_tool-tool_endpoint->get_description( )
+        exp = original_tool-tool_endpoint->get_description( )
+        msg = |Tool description should match| ).
+    ENDLOOP.
+
+    " assert the graph structure
+    LOOP AT agent->node_edge_graph INTO DATA(original_node).
+      DATA(actual_node) = actual_agent->node_edge_graph[ source_node_id = original_node-source_node_id ].
+      IF sy-subrc <> 0.
+        cl_abap_unit_assert=>fail( msg = |Node { original_node-source_node_id } should exist in deserialized agent| ).
+      ENDIF.
+      cl_abap_unit_assert=>assert_equals(
+        act = actual_node-source_node_id
+        exp = original_node-source_node_id
+        msg = |Node id { original_node-source_node_id } should match| ).
+      cl_abap_unit_assert=>assert_equals(
+        act = actual_node-source_node->get_configuration( )
+        exp = original_node-source_node->get_configuration( )
+        msg = |Node configuration should match| ).
+      " if the node is tool node, check the tool endpoint in the tool node
+      " tool registry points to the tool endpoint in the agent tool registry
+      IF actual_node-source_node->get_node_type( ) = to_upper('zcl_ai_node_tool').
+        DATA(actual_tool_node) = CAST zif_ai_node_tool_aware( actual_node-source_node ).
+        DATA(actual_tool_node_tools) = actual_tool_node->get_tools( ).
+        LOOP AT actual_tool_node_tools INTO DATA(actual_tool_node_tool).
+          cl_abap_unit_assert=>assert_equals(
+            act = actual_tool_node_tool-tool_endpoint
+            exp = actual_agent->tools[ tool_name = actual_tool_node_tool-tool_name ]-tool_endpoint
+            msg = |Tool endpoint in tool node should point to the tool in agent tool registry|
+          ).
+        ENDLOOP.
+      ENDIF.
+
+      LOOP AT original_node-next_nodes INTO DATA(original_edge).
+        "DATA(actual_edge) = actual_node-next_nodes[ target_node_id = original_edge-target_node_id ]. " failure causing line
+
+        DATA(actual_edge) = actual_node-next_nodes[ sy-tabix ].
+*        IF sy-subrc <> 0.
+*          cl_abap_unit_assert=>fail( msg = |Edge to node { original_edge-target_node_id } should exist in deserialized agent| ).
+*        ENDIF.
+        cl_abap_unit_assert=>assert_equals(
+          act = actual_edge-target_node_id
+          exp = original_edge-target_node_id
+          msg = |Edge to node { original_edge-target_node_id } should match| ).
+
+        cl_abap_unit_assert=>assert_equals(
+          act = actual_edge-condition
+          exp = original_edge-condition
+          msg = |Edge condition to node { original_edge-target_node_id } should match| ).
+        cl_abap_unit_assert=>assert_equals(
+          act = actual_edge-condition_value
+          exp = original_edge-condition_value
+          msg = |Edge condition value to node { original_edge-target_node_id } should match| ).
+        cl_abap_unit_assert=>assert_equals(
+          act = actual_edge-priority
+          exp = original_edge-priority
+          msg = |Edge priority to node { original_edge-target_node_id } should match| ).
+        " check the target node points to the correct node in the node_edge_graph
+        cl_abap_unit_assert=>assert_equals(
+          act = actual_edge-target_node
+          exp = actual_agent->node_edge_graph[ source_node_id = actual_edge-target_node_id ]-source_node ).
+      ENDLOOP.
+    ENDLOOP.
   ENDMETHOD.
 
 ENDCLASS.

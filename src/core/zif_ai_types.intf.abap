@@ -77,9 +77,10 @@ INTERFACE zif_ai_types
   " 2. Node Blueprint (Replaces Object with Class Name)
   TYPES: BEGIN OF ts_node_blueprint,
            node_id    TYPE ty_node_id,
+           node_name  TYPE string,
            class_name TYPE string,           " <--- THE FIX: Store 'ZCL_NODE_LLM', etc.
            config     TYPE string,           " Optional: Node specific settings
-           next_nodes      TYPE tt_edge_blueprints,
+           next_nodes TYPE tt_edge_blueprints,
          END OF ts_node_blueprint.
 
   " 3. The Full Map for Storage
@@ -97,10 +98,10 @@ INTERFACE zif_ai_types
 
   " struture for agent blueprint enabling a single return sturture and method nesting
   TYPES: BEGIN OF ts_agent_blueprint,
-           agent_id        TYPE ty_agent_id,
-           agent_name      TYPE string,
-           start_node_id   TYPE ty_node_id,
-           graph_blueprint TYPE tt_graph_blueprint,
+           agent_id                TYPE ty_agent_id,
+           agent_name              TYPE string,
+           start_node_id           TYPE ty_node_id,
+           graph_blueprint         TYPE tt_graph_blueprint,
            tool_registry_blueprint TYPE tt_tool_blueprints,
          END OF ts_agent_blueprint.
 

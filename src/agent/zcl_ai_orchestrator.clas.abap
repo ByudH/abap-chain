@@ -9,10 +9,11 @@ CLASS zcl_ai_orchestrator DEFINITION
       IMPORTING
 *        it_nodes         TYPE zif_ai_types=>tt_node_registry_lh
 *        it_edges         TYPE zif_ai_types=>tt_edge_lh
-        agent_id        TYPE zif_ai_types=>ty_agent_id
+        agent_id           TYPE zif_ai_types=>ty_agent_id
         node_edge_graph    TYPE zif_ai_types=>th_graph_map
         start_node_id      TYPE zif_ai_types=>ty_node_id
         initial_state      TYPE zif_ai_types=>ts_graph_state OPTIONAL
+        hitl_wait          TYPE REF TO zif_ai_hitl_wait_strategy OPTIONAL
       RETURNING
         VALUE(final_state) TYPE zif_ai_types=>ts_graph_state.
 
@@ -20,9 +21,9 @@ CLASS zcl_ai_orchestrator DEFINITION
     " US2.3: Save the current graph state to the database
     CLASS-METHODS save_checkpoint
       IMPORTING
-        !iv_agent_id TYPE zif_ai_types=>ty_agent_id
-        !iv_node_id  TYPE zif_ai_types=>ty_node_id
-        !is_state    TYPE zif_ai_types=>ts_graph_state.
+        agent_id TYPE zif_ai_types=>ty_agent_id
+        node_id  TYPE zif_ai_types=>ty_node_id
+        state    TYPE zif_ai_types=>ts_graph_state.
 
     " US2.4 — Resume execution from a checkpoint
     CLASS-METHODS resume_checkpoint
@@ -42,6 +43,12 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
   METHOD run.
 
     DATA(logger) = zcl_abapchain_logger=>get_instance( ).
+
+    DATA(hitl) = hitl_wait.
+    IF hitl IS NOT BOUND.
+      hitl = NEW zcl_ai_hitl_wait_blocking( ).
+    ENDIF.
+
 
     DATA state TYPE zif_ai_types=>ts_graph_state.
     state = initial_state.
@@ -144,9 +151,9 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
           " Save state immediately after successful node execution to capture
           " the latest changes (e.g., LLM responses or tool outputs).
           zcl_ai_orchestrator=>save_checkpoint(
-            iv_agent_id = agent_id
-            iv_node_id = current_node_id
-            is_state   = state
+            agent_id = agent_id
+            node_id  = current_node_id
+            state    = state
           ).
 
         CATCH cx_root INTO DATA(ex).
@@ -168,6 +175,18 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
         CATCH cx_root.
       ENDTRY.
 
+
+
+      IF state-status = zif_ai_types=>gc_workflow_status_waiting
+         AND state-hitl_correlation_id IS NOT INITIAL.
+
+        hitl->handle_wait(
+        EXPORTING
+            agent_id = agent_id    " or iv_agent_id
+        CHANGING
+            state    = state ).
+
+      ENDIF.
 
 
       " 3) Collect outgoing edges for this node
@@ -260,7 +279,7 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
 
     " 1. Serialize the current state structure into a JSON string
     " We use the standard JSON library to convert the state into a string format
-    DATA(lv_state_json) = /ui2/cl_json=>serialize( data = is_state ).
+    DATA(lv_state_json) = /ui2/cl_json=>serialize( data = state ).
 
     " 2. Prepare the database record
     TRY.
@@ -269,11 +288,11 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
         ls_checkpoint-checkpoint_id = cl_system_uuid=>create_uuid_x16_static( ).
 
         " --- Advanced Optimization: Mapping Agent ID ---
-        ls_checkpoint-agent_id      = iv_agent_id.
+        ls_checkpoint-agent_id      = agent_id.
 
         " Note: In your current static 'run' method, you might need a way to pass agent_id.
         " For now, we focus on node and state.
-        ls_checkpoint-node_id       = iv_node_id.
+        ls_checkpoint-node_id       = node_id.
         GET TIME STAMP FIELD ls_checkpoint-timestamp.
         ls_checkpoint-state_data    = lv_state_json.
 
@@ -295,10 +314,10 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
           lv_state_json TYPE string.
 
     " 1) Load checkpoint
-   SELECT SINGLE *
-     FROM zai_checkpoint
-     WHERE checkpoint_id = @iv_checkpoint_id
-     INTO @ls_checkpoint.
+    SELECT SINGLE *
+      FROM zai_checkpoint
+      WHERE checkpoint_id = @iv_checkpoint_id
+      INTO @ls_checkpoint.
 
     IF sy-subrc <> 0.
       RAISE EXCEPTION TYPE cx_sy_no_handler.
@@ -317,6 +336,6 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
     ev_node_id  = ls_checkpoint-node_id.
     ev_agent_id = ls_checkpoint-agent_id.
 
-    ENDMETHOD.
+  ENDMETHOD.
 
 ENDCLASS.

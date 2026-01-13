@@ -65,14 +65,14 @@ CLASS zcl_ai_agent_builder DEFINITION
     " Finalize – create the zcl_ai_agent with nodes, edges, tools
     METHODS build
       RETURNING
-                VALUE(agent) TYPE REF TO zcl_ai_agent_lh
+                VALUE(agent) TYPE REF TO zcl_ai_agent
       RAISING   zcx_ai_agent_error.
 
     METHODS build_from_blueprint
       IMPORTING
                 agent_blueprint TYPE zif_ai_types=>ts_agent_blueprint
       RETURNING
-                VALUE(agent)    TYPE REF TO zcl_ai_agent_lh
+                VALUE(agent)    TYPE REF TO zcl_ai_agent
       RAISING   zcx_ai_agent_error.
 
   PRIVATE SECTION.
@@ -329,7 +329,7 @@ CLASS zcl_ai_agent_builder IMPLEMENTATION.
     ENDLOOP.
 
     " 6) Create agent
-    agent = zcl_ai_agent_lh=>create(
+    agent = zcl_ai_agent=>create(
       agent_name      = agent_name
       node_edge_graph = node_edge_graph
       start_node_id   = start_node_id
@@ -355,7 +355,7 @@ CLASS zcl_ai_agent_builder IMPLEMENTATION.
     DATA(tools) = restore_tools_from_blueprint(
       tool_registry_blueprint = agent_blueprint-tool_registry_blueprint
       agent_id                = agent_id ).
-    agent = zcl_ai_agent_lh=>create(
+    agent = zcl_ai_agent=>create(
       agent_name      = agent_name
       node_edge_graph = node_edge_graph
       start_node_id   = start_node_id

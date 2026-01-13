@@ -46,7 +46,7 @@ CLASS lhc_HitlReq IMPLEMENTATION.
             RespondedBy     = current_user )
         ).
 
-      " result = VALUE #( ( %param-CorrelationId = lv_corr ) ).
+
 
     ENDLOOP.
 
