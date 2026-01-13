@@ -28,11 +28,11 @@ CLASS zcl_ai_orchestrator DEFINITION
     " US2.4 — Resume execution from a checkpoint
     CLASS-METHODS resume_checkpoint
       IMPORTING
-        iv_checkpoint_id TYPE zai_checkpoint-checkpoint_id
+        checkpoint_id TYPE zai_checkpoint-checkpoint_id
       EXPORTING
-        ev_agent_id      TYPE zif_ai_types=>ty_agent_id
-        ev_node_id       TYPE zif_ai_types=>ty_node_id
-        es_state         TYPE zif_ai_types=>ts_graph_state.
+        agent_id      TYPE zif_ai_types=>ty_agent_id
+        node_id       TYPE zif_ai_types=>ty_node_id
+        state         TYPE zif_ai_types=>ts_graph_state.
 
 ENDCLASS.
 
@@ -316,7 +316,7 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
     " 1) Load checkpoint
     SELECT SINGLE *
       FROM zai_checkpoint
-      WHERE checkpoint_id = @iv_checkpoint_id
+      WHERE checkpoint_id = @checkpoint_id
       INTO @ls_checkpoint.
 
     IF sy-subrc <> 0.
@@ -330,11 +330,11 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
       EXPORTING
         json = lv_state_json
       CHANGING
-        data = es_state ).
+        data = state ).
 
     " 3) Restore execution pointers
-    ev_node_id  = ls_checkpoint-node_id.
-    ev_agent_id = ls_checkpoint-agent_id.
+    node_id  = ls_checkpoint-node_id.
+    agent_id = ls_checkpoint-agent_id.
 
   ENDMETHOD.
 
