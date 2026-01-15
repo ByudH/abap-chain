@@ -9,16 +9,22 @@ CLASS zcl_ai_utils DEFINITION
 
     CLASS-METHODS state_to_json
       IMPORTING
-        state         TYPE zif_ai_types=>ts_graph_state
+        state       TYPE zif_ai_types=>ts_graph_state
       RETURNING
-        VALUE(json)   TYPE string.
+        VALUE(json) TYPE string.
 
     " Deserializes JSON String back to State Structure
     CLASS-METHODS json_to_state
       IMPORTING
-        json          TYPE string
+        json         TYPE string
       RETURNING
-        VALUE(state)  TYPE zif_ai_types=>ts_graph_state.
+        VALUE(state) TYPE zif_ai_types=>ts_graph_state.
+
+    CLASS-METHODS messages_to_string
+      IMPORTING
+        messages                  TYPE zif_ai_types=>tt_messages
+      RETURNING
+        VALUE(messages_in_string) TYPE string.
 
   PROTECTED SECTION.
   PRIVATE SECTION.
@@ -30,7 +36,7 @@ CLASS zcl_ai_utils IMPLEMENTATION.
   METHOD generate_uuid.
     TRY.
         generated_uuid = cl_system_uuid=>create_uuid_x16_static( ).
-      CATCH cx_uuid_error into data(error).
+      CATCH cx_uuid_error INTO DATA(error).
         " If UUID generation fails, raise a short dump with the error message
         RAISE SHORTDUMP error.
     ENDTRY.
@@ -52,6 +58,14 @@ CLASS zcl_ai_utils IMPLEMENTATION.
     " 2. Write directly to ABAP Structure
     "    Since names match exactly, no mapping logic is needed
     xco_data->write_to( REF #( state ) ).
+  ENDMETHOD.
+
+  METHOD messages_to_string.
+LOOP AT messages INTO DATA(message).
+    messages_in_string = messages_in_string &&
+                         |[{ message-role }]: { message-content }| &&
+                         cl_abap_char_utilities=>newline.
+  ENDLOOP.
   ENDMETHOD.
 
 ENDCLASS.

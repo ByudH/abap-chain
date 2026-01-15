@@ -36,7 +36,7 @@ CLASS ltcl_serialization_test IMPLEMENTATION.
   METHOD test_round_trip.
     " 1. ARRANGE (Prepare data)
     DATA(input_state) = VALUE zif_ai_types=>ts_graph_state(
-      messages       = `Test Message`
+      messages       = value #( ( role = 'system' content = 'test message' ) )
       last_tool_name = `tool_A`
       branch_label   = `success`
       result_json    = `{"key":1}`
@@ -75,7 +75,7 @@ CLASS ltcl_serialization_test IMPLEMENTATION.
   METHOD test_special_chars.
     " 1. ARRANGE
     DATA(nasty_state) = VALUE zif_ai_types=>ts_graph_state(
-      messages = |Line 1\nLine 2 with "Quotes" and \\ backslash|
+      messages = value #( ( role = 'system' content = |Line 1\nLine 2 with "Quotes" and \\ backslash| ) )
     ).
 
     " 2. ACT
