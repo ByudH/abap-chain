@@ -44,9 +44,16 @@ CLASS zcl_ai_node_base IMPLEMENTATION.
         state = state
     ).
   ENDMETHOD.
+
   METHOD do_execute.
-    state-messages = state-messages && |Base Node { me->node_id } of agent { me->agent_id } executed. No concrete implementation.|.
+    DATA(new_message) = VALUE zif_ai_types=>ts_message(
+    role    = zif_ai_types=>gc_role_assistant
+    message = |Base Node { me->node_id } of agent { me->agent_id } executed.|
+    ).
+
+    APPEND new_message TO state-messages.
   ENDMETHOD.
+
   METHOD zif_ai_node~get_node_id.
     node_id = me->node_id.
   ENDMETHOD.

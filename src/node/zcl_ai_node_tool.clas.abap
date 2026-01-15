@@ -140,16 +140,14 @@ CLASS zcl_ai_node_tool IMPLEMENTATION.
 
     " Expect: state-last_tool_name contains requested tool
     IF state-last_tool_name IS INITIAL.
-      state-messages = state-messages && cl_abap_char_utilities=>newline &&
-        |[ToolNode] No tool requested.|.
+      APPEND VALUE #( role = zif_ai_types=>gc_role_error content = |[ToolNode] No tool requested.| ) TO state-messages.
       state-branch_label = 'END'.
       RETURN.
     ENDIF.
 
     READ TABLE tools INTO DATA(tool_entry) WITH KEY tool_name = state-last_tool_name.
     IF sy-subrc <> 0 OR tool_entry-tool_endpoint IS INITIAL.
-      state-messages = state-messages && cl_abap_char_utilities=>newline &&
-        |[ToolNode] Tool not found: { state-last_tool_name }|.
+      APPEND VALUE #( role = zif_ai_types=>gc_role_error content = |[ToolNode] Tool not found: { state-last_tool_name }| ) TO state-messages.
       state-branch_label = 'END'.
       RETURN.
     ENDIF.
@@ -167,7 +165,7 @@ CLASS zcl_ai_node_tool IMPLEMENTATION.
     TRY.
         tool_output = execute_tool_with_retry(
           tool_entry = tool_entry
-          input      = state-messages ).
+          input      = zcl_ai_utils=>messages_to_string( state-messages ) ).
       CATCH cx_root INTO DATA(ex).
         TRY.
             logger->log_error(
@@ -175,19 +173,20 @@ CLASS zcl_ai_node_tool IMPLEMENTATION.
           CATCH cx_root.
         ENDTRY.
 
-        state-messages = state-messages && cl_abap_char_utilities=>newline &&
-          |[ToolNode] Tool failed: { ex->get_text( ) }|.
+        APPEND VALUE #( role = zif_ai_types=>gc_role_error content = |[ToolNode] Tool failed: { ex->get_text( ) }|
+        ) TO state-messages.
+
         state-branch_label = 'END'.
         RETURN.
     ENDTRY.
 
     " Append tool output
-    state-messages =
-      state-messages &&
-      cl_abap_char_utilities=>newline &&
-      |[Tool { tool_entry-tool_name } Output]| &&
-      cl_abap_char_utilities=>newline &&
-      tool_output.
+    APPEND VALUE #(
+    role    = zif_ai_types=>gc_role_tool
+    content = |[Tool { tool_entry-tool_name } Output]| &&
+    cl_abap_char_utilities=>newline &&
+    tool_output
+    ) TO state-messages.
 
     state-result_json    = tool_output.
     state-branch_label   = ''.               "'LLM' go back to LLM node

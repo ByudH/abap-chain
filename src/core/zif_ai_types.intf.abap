@@ -11,16 +11,33 @@ INTERFACE zif_ai_types
   "Shared types for node_id and agent_id
   TYPES ty_node_id TYPE uuid.
   TYPES ty_agent_id TYPE uuid. "Could be UUID
+
+  " Message role constants
+  CONSTANTS:
+    gc_role_system    TYPE string VALUE 'system',
+    gc_role_user      TYPE string VALUE 'user',
+    gc_role_assistant TYPE string VALUE 'assistant',
+    gc_role_error   TYPE string VALUE 'error', " for the error messages in state
+    gc_role_tool      TYPE string VALUE 'tool'.
+
+  TYPES: BEGIN OF ts_message,
+           role    TYPE string,  "e.g., 'user', 'assistant', 'system', 'tool'
+           content TYPE string,  "The actual message content
+         END OF ts_message.
+
+  TYPES tt_messages TYPE STANDARD TABLE OF ts_message WITH EMPTY KEY.
+
+
   " Shared Structure for the state
   TYPES: BEGIN OF ts_graph_state,
-           messages              TYPE string,  "LLM responses / narrative"
+           messages              TYPE tt_messages,  "LLM responses / narrative"
            last_tool_name        TYPE string,  "debug info"
            branch_label          TYPE string,  "routing: ON_LABEL"
            result_json           TYPE string,  "final output"
            status                TYPE string,  "workflow execution status (e.g., RETRYING, ERROR)"
 
            " HITL
-           hitl_correlation_id   TYPE uuid,
+           hitl_correlation_id   TYPE sysuuid_x16,
            hitl_topic            TYPE string,
            hitl_reason           TYPE string,
            hitl_prompt           TYPE string,

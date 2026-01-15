@@ -29,7 +29,6 @@ ENDCLASS.
 CLASS zcl_ai_node_llm IMPLEMENTATION.
   METHOD constructor.
     super->constructor( node_id = node_id agent_id = agent_id node_name = name ).
-*    me->name = name.
     " Create real LLM client (SAP ISLM / AI Core)
     mo_llm_client = NEW zcl_ai_llm_client( ).
   ENDMETHOD.
@@ -39,7 +38,7 @@ CLASS zcl_ai_node_llm IMPLEMENTATION.
 
     DATA(lv_system_prompt) = `You are an SAP ABAP AI agent. Help the user with SAP-related tasks.`.
     DATA lv_user_prompt TYPE string.
-    lv_user_prompt = state-messages.
+    lv_user_prompt = zcl_ai_utils=>messages_to_string( state-messages ).
 
 
     TRY.
@@ -51,8 +50,8 @@ CLASS zcl_ai_node_llm IMPLEMENTATION.
           iv_system_prompt = lv_system_prompt
           iv_user_prompt   = lv_user_prompt ).
         " If successful, append the response to the state messages
-        state-messages = state-messages && cl_abap_char_utilities=>newline &&
-        |[LLM RESPONSE]| && cl_abap_char_utilities=>newline && lv_llm_output.
+
+        APPEND VALUE #( role = zif_ai_types=>gc_role_assistant content = lv_llm_output ) TO state-messages.
 
         " 2. Catch the custom AI Agent Errors (Timeout or API Failure)
       CATCH zcx_ai_agent_error INTO DATA(lx_error).
@@ -79,13 +78,20 @@ CLASS zcl_ai_node_llm IMPLEMENTATION.
         ENDIF.
 
         " Append the human-readable error message to the state
-        state-messages = state-messages && lv_error_message.
+        APPEND VALUE #( role = zif_ai_types=>gc_role_error content = lv_error_message ) TO state-messages.
+        " since no error handling policy and error should not be sent to the llm so agent ends here
+        state-branch_label = 'END'.
+
 
         " 4. Catch any critical, unhandled ABAP runtime errors
       CATCH cx_root INTO DATA(lx_abap_error).
         state-status = zif_ai_types=>gc_workflow_status_error.
         DATA(lv_abap_error_message) = lx_abap_error->get_text( ).
-        state-messages = state-messages && |CRITICAL UNHANDLED ERROR: { lv_abap_error_message }|.
+        APPEND VALUE #( role = zif_ai_types=>gc_role_error content =  |CRITICAL UNHANDLED ERROR: { lv_abap_error_message }| ) TO state-messages.
+
+        " since no error handling policy and error should not be sent to the llm so agent ends here
+        state-branch_label = 'END'.
+
 
     ENDTRY.
   ENDMETHOD.
