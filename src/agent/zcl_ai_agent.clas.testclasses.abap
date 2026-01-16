@@ -13,11 +13,8 @@ CLASS ltzcl_ai_agent_test DEFINITION FINAL FOR TESTING
       agent        TYPE REF TO zcl_ai_agent,
       tool_table   TYPE REF TO zif_ai_tool,
       tool_risk    TYPE REF TO zif_ai_tool,
-      agent_id     TYPE zif_ai_types=>ty_agent_id,
-      llm_node     TYPE REF TO zif_ai_node,
-      tool_node    TYPE REF TO zif_ai_node,
-      tool_node_id TYPE zif_ai_types=>ty_node_id,
-      llm_node_id  TYPE zif_ai_types=>ty_node_id.
+      llm_node     TYPE REF TO zcl_ai_node_llm,
+      tool_node    TYPE REF TO zcl_ai_node_tool.
     DATA builder TYPE REF TO zcl_ai_agent_builder.
 ENDCLASS.
 
@@ -27,21 +24,16 @@ CLASS ltzcl_ai_agent_test IMPLEMENTATION.
     " (Assuming you have a simple tool class or mock available)
     tool_table = NEW zcl_ai_tool_fake_table_info( ).
     tool_risk  = NEW zcl_ai_tool_fake_risk_check( ).
-    agent_id = zcl_ai_utils=>generate_uuid( ).
-    tool_node_id    = zcl_ai_utils=>generate_uuid( ).
-    llm_node_id = zcl_ai_utils=>generate_uuid( ).
 
     " B. Create Nodes
     " --- LLM Node ---
     llm_node = NEW zcl_ai_node_llm(
-      name     = 'LLM-Node'
-      node_id  = llm_node_id
-      agent_id = agent_id
+      name = 'LLM-Node'
     ).
 
     " --- Tool Node ---
     tool_node = NEW zcl_ai_node_tool(
-      name     = 'Tool Executor'
+      name = 'Tool Executor'
     ).
 
     builder = zcl_ai_agent_builder=>new( name = 'ABAPCHAIN_DEMO' ).
@@ -63,14 +55,14 @@ CLASS ltzcl_ai_agent_test IMPLEMENTATION.
                 tool        = tool_risk
 
             )->connect_on_control(
-                from_node_id  = llm_node_id
-                to_node_id    = tool_node_id
+                from_node_id  = llm_node->node_id
+                to_node_id    = tool_node->node_id
                 control_value = 'TOOL'
                 priority      = 1
 
             )->connect_always(
-                from_node_id  = tool_node_id
-                to_node_id    = llm_node_id
+                from_node_id  = tool_node->node_id
+                to_node_id    = llm_node->node_id
                 priority      = 1
 
             )->attach_tool_to_node(
@@ -81,11 +73,14 @@ CLASS ltzcl_ai_agent_test IMPLEMENTATION.
                 node  = tool_node
                 tool_name  = 'risk_check'
             )->set_start_node(
-                llm_node_id
+                llm_node->node_id
             ).
 
-    agent = builder->build( ).
-
+    TRY.
+        agent = builder->build( ).
+      CATCH zcx_ai_agent_error INTO DATA(e).
+        cl_abap_unit_assert=>fail( msg = |Agent build failed: { e->message }| ).
+    ENDTRY.
 
   ENDMETHOD.
 
@@ -173,9 +168,14 @@ CLASS ltzcl_ai_agent_test IMPLEMENTATION.
       exp = 'ABAPCHAIN_DEMO'
       msg = 'Agent name should match' ).
 
+      cl_abap_unit_assert=>assert_equals(
+      act = blueprint-agent_id
+      exp = agent->agent_id
+      msg = 'Agent id should match' ).
+
     cl_abap_unit_assert=>assert_equals(
       act = blueprint-start_node_id
-      exp = llm_node_id
+      exp = llm_node->node_id
       msg = 'Start node ID should match' ).
 
     " B. Check Nodes (Should be 2)
@@ -185,7 +185,7 @@ CLASS ltzcl_ai_agent_test IMPLEMENTATION.
       msg = 'Should have exactly 2 nodes serialized' ).
 
     " Verify Node Types & Config
-    READ TABLE blueprint-graph_blueprint INTO DATA(bp_llm) WITH KEY node_id = llm_node_id.
+    READ TABLE blueprint-graph_blueprint INTO DATA(bp_llm) WITH KEY node_id = llm_node->node_id.
     cl_abap_unit_assert=>assert_subrc( msg = 'LLM Node must exist in blueprint' ).
 
     " Check if JSON config was generated (Simple check: not empty)
@@ -198,7 +198,7 @@ CLASS ltzcl_ai_agent_test IMPLEMENTATION.
       exp = 'zcl_ai_node_llm'
       msg = 'Tool Node config should contain tool executor name' ).
 
-    READ TABLE blueprint-graph_blueprint INTO DATA(bp_tool) WITH KEY node_id = tool_node_id.
+    READ TABLE blueprint-graph_blueprint INTO DATA(bp_tool) WITH KEY node_id = tool_node->node_id.
     cl_abap_unit_assert=>assert_subrc( msg = 'LLM Node must exist in blueprint' ).
 
     cl_abap_unit_assert=>assert_not_initial(
@@ -213,7 +213,7 @@ CLASS ltzcl_ai_agent_test IMPLEMENTATION.
     " C. Check Edges
     " LLM->Tool and Tool->LLM = 2 edges
     cl_abap_unit_assert=>assert_equals(
-      act = lines( blueprint-graph_blueprint[ node_id = llm_node_id ]-next_nodes ) + lines( blueprint-graph_blueprint[ node_id = tool_node_id ]-next_nodes )
+      act = lines( blueprint-graph_blueprint[ node_id = llm_node->node_id ]-next_nodes ) + lines( blueprint-graph_blueprint[ node_id = tool_node->node_id ]-next_nodes )
       exp = 2
       msg = 'Should have 2 edges defined' ).
 

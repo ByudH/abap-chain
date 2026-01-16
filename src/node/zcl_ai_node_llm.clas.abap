@@ -7,9 +7,7 @@ CLASS zcl_ai_node_llm DEFINITION
   PUBLIC SECTION.
     METHODS constructor
       IMPORTING
-        name     TYPE string
-        node_id  TYPE zif_ai_types=>ty_node_id
-        agent_id TYPE zif_ai_types=>ty_agent_id.
+        name TYPE string.
     METHODS zif_ai_node~get_configuration REDEFINITION.
     METHODS zif_ai_node~set_configuration REDEFINITION.
   PROTECTED SECTION.

@@ -15,7 +15,7 @@ CLASS zcl_ai_agent_builder DEFINITION
     " First added node becomes start node by default (unless overridden)
     METHODS add_node
       IMPORTING
-        node           TYPE REF TO zif_ai_node
+        node           TYPE REF TO zcl_ai_node_base
       RETURNING
         VALUE(builder) TYPE REF TO zcl_ai_agent_builder.
 
@@ -76,7 +76,7 @@ CLASS zcl_ai_agent_builder DEFINITION
       RAISING   zcx_ai_agent_error.
 
   PRIVATE SECTION.
-
+    DATA agent_id      TYPE zif_ai_types=>ty_agent_id.
     DATA agent_name    TYPE string.
     DATA start_node_id TYPE zif_ai_types=>ty_node_id.
 
@@ -108,13 +108,16 @@ CLASS zcl_ai_agent_builder IMPLEMENTATION.
   METHOD new.
     CREATE OBJECT builder.
     builder->agent_name = name.
+    builder->agent_id = zcl_ai_utils=>generate_uuid( ).
   ENDMETHOD.
 
   METHOD add_node.
     DATA node_id TYPE zif_ai_types=>ty_node_id.
 
-    node_id = node->get_node_id( ).
+    node_id = node->node_id.
 
+    " set the agent_id of the node
+    node->agent_id = agent_id.
     " check if an entry for this node already exists
     READ TABLE node_edge_graph ASSIGNING FIELD-SYMBOL(<entry>)
          WITH KEY source_node_id = node_id.
@@ -330,6 +333,7 @@ CLASS zcl_ai_agent_builder IMPLEMENTATION.
 
     " 6) Create agent
     agent = zcl_ai_agent=>create(
+      agent_id        = agent_id
       agent_name      = agent_name
       node_edge_graph = node_edge_graph
       start_node_id   = start_node_id
@@ -356,6 +360,7 @@ CLASS zcl_ai_agent_builder IMPLEMENTATION.
       tool_registry_blueprint = agent_blueprint-tool_registry_blueprint
       agent_id                = agent_id ).
     agent = zcl_ai_agent=>create(
+      agent_id        = agent_id
       agent_name      = agent_name
       node_edge_graph = node_edge_graph
       start_node_id   = start_node_id
@@ -398,10 +403,11 @@ CLASS zcl_ai_agent_builder IMPLEMENTATION.
       CLEAR graph_entry.
       CREATE OBJECT node TYPE (node_blueprint-class_name)
                EXPORTING
-                 node_id   = node_blueprint-node_id
-                 agent_id = agent_id
                  name = node_blueprint-node_name.
       node->set_configuration( node_blueprint-config ).
+      DATA(node_in_class) = CAST zcl_ai_node_base( node ).
+      node_in_class->agent_id = agent_id.
+      node_in_class->node_id = node_blueprint-node_id.
       graph_entry-source_node_id = node->get_node_id( ).
       graph_entry-source_node = node.
       INSERT graph_entry INTO TABLE node_edge_graph.
