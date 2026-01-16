@@ -131,6 +131,7 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
       TRY.
           logger->log_node(
             node_id   = current_node_id
+            node_name = graph_entry-source_node->get_node_name( )
             message   = |Execute node.|
             severity  = if_bali_constants=>c_severity_status ).
         CATCH cx_root.
@@ -142,8 +143,8 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
 
       TRY.
           graph_entry-source_node->execute(
-             CHANGING
-               state = state ).
+            CHANGING
+              state = state ).
 
           " --- US2.3: PERSISTENCE POINT ---
           " Save state immediately after successful node execution to capture
@@ -168,6 +169,7 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
       TRY.
           logger->log_node(
             node_id   = current_node_id
+            node_name = graph_entry-source_node->get_node_name( )
             message   = |Node executed. branch_label="{ state-branch_label }" last_tool="{ state-last_tool_name }".|
             severity  = if_bali_constants=>c_severity_information ).
         CATCH cx_root.
@@ -179,27 +181,27 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
          AND state-hitl_correlation_id IS NOT INITIAL.
 
         logger->log_orchestrator(
-            step         = step_count
-            current_node = current_node_id
-            next_node    = current_node_id
-            branch_label = state-branch_label
-            message      = |WAIT_ENTER corr_id={ state-hitl_correlation_id }|
-            severity     = if_bali_constants=>c_severity_status ).
+          step         = step_count
+          current_node = current_node_id
+          next_node    = current_node_id
+          branch_label = state-branch_label
+          message      = |WAIT_ENTER corr_id={ state-hitl_correlation_id }|
+          severity     = if_bali_constants=>c_severity_status ).
 
 
         hitl->handle_wait(
-        EXPORTING
+          EXPORTING
             agent_id = agent_id    " or iv_agent_id
-        CHANGING
+          CHANGING
             state    = state ).
 
         logger->log_orchestrator(
-            step         = step_count
-            current_node = current_node_id
-            next_node    = current_node_id
-            branch_label = state-branch_label
-            message      = |WAIT_RESUME status="{ state-status }"|
-            severity     = if_bali_constants=>c_severity_information ).
+          step         = step_count
+          current_node = current_node_id
+          next_node    = current_node_id
+          branch_label = state-branch_label
+          message      = |WAIT_RESUME status="{ state-status }"|
+          severity     = if_bali_constants=>c_severity_information ).
 
       ENDIF.
 
@@ -255,12 +257,12 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
 
         TRY.
             logger->log_orchestrator(
-                  step         = step_count
-                  current_node = current_node_id
-                  next_node    = current_node_id
-                  branch_label = state-branch_label
-                  message      = |Stop: no outgoing edges.|
-                  severity     = if_bali_constants=>c_severity_status ).
+              step         = step_count
+              current_node = current_node_id
+              next_node    = current_node_id
+              branch_label = state-branch_label
+              message      = |Stop: no outgoing edges.|
+              severity     = if_bali_constants=>c_severity_status ).
           CATCH cx_bali_runtime.
         ENDTRY.
 
