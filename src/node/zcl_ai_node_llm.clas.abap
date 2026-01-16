@@ -28,7 +28,7 @@ ENDCLASS.
 
 CLASS zcl_ai_node_llm IMPLEMENTATION.
   METHOD constructor.
-    super->constructor( node_id = node_id agent_id = agent_id node_name = name ).
+    super->constructor( node_name = name ).
     " Create real LLM client (SAP ISLM / AI Core)
     mo_llm_client = NEW zcl_ai_llm_client( ).
   ENDMETHOD.
@@ -75,12 +75,14 @@ CLASS zcl_ai_node_llm IMPLEMENTATION.
           " Generic custom error fallback
           state-status = zif_ai_types=>gc_workflow_status_error.
           lv_error_message = |AI Agent Error (Generic). Details: { lv_detail_text }|.
+
+          " since no error handling policy and error should not be sent to the llm so agent ends here
+          state-branch_label = 'END'.
         ENDIF.
 
         " Append the human-readable error message to the state
         APPEND VALUE #( role = zif_ai_types=>gc_role_error content = lv_error_message ) TO state-messages.
-        " since no error handling policy and error should not be sent to the llm so agent ends here
-        state-branch_label = 'END'.
+
 
 
         " 4. Catch any critical, unhandled ABAP runtime errors

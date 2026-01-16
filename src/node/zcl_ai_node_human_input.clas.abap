@@ -9,8 +9,6 @@ CLASS zcl_ai_node_human_input DEFINITION
 
     METHODS constructor
       IMPORTING
-        node_id   TYPE zif_ai_types=>ty_node_id
-        agent_id  TYPE zif_ai_types=>ty_agent_id
         topic     TYPE string DEFAULT 'ABAPCHAIN'
         reason    TYPE string DEFAULT 'Human input required'
         prompt    TYPE string DEFAULT 'Please respond'
@@ -41,7 +39,7 @@ ENDCLASS.
 CLASS zcl_ai_node_human_input IMPLEMENTATION.
 
   METHOD constructor.
-    super->constructor( agent_id = agent_id node_id = node_id node_name = 'HITL' ).
+    super->constructor( node_name = 'HITL' ).
 
     _topic   = topic.
     _reason  = reason.

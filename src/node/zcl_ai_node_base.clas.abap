@@ -1,7 +1,8 @@
 CLASS zcl_ai_node_base DEFINITION
   PUBLIC
   ABSTRACT
-  CREATE PUBLIC .
+  CREATE PUBLIC
+  GLOBAL FRIENDS zcl_ai_agent_builder. " To allow the agent builder to modify agent_id
 
   PUBLIC SECTION.
     "Read-only attributes
@@ -14,8 +15,6 @@ CLASS zcl_ai_node_base DEFINITION
     "Declare constructor
     METHODS constructor
       IMPORTING
-        node_id   TYPE zif_ai_types=>ty_node_id
-        agent_id  TYPE zif_ai_types=>ty_agent_id
         node_name TYPE string.
   PROTECTED SECTION.
     METHODS do_execute
@@ -27,16 +26,14 @@ CLASS zcl_ai_node_base DEFINITION
         message  TYPE string
         severity TYPE if_bali_constants=>ty_severity DEFAULT if_bali_constants=>c_severity_information.
   PRIVATE SECTION.
-
 ENDCLASS.
 
 
 
 CLASS zcl_ai_node_base IMPLEMENTATION.
   METHOD constructor.
-    me->node_id = node_id.
-    me->agent_id = agent_id.
     me->node_name = node_name.
+    me->node_id = zcl_ai_utils=>generate_uuid( ).
   ENDMETHOD.
   METHOD zif_ai_node~execute.
     do_execute(

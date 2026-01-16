@@ -10,8 +10,6 @@ CLASS zcl_ai_node_tool DEFINITION
 
     METHODS constructor
       IMPORTING
-        node_id       TYPE zif_ai_types=>ty_node_id
-        agent_id      TYPE zif_ai_types=>ty_agent_id
         name          TYPE string
         max_retries   TYPE i DEFAULT 2
         retry_delay_s TYPE i DEFAULT 0.
@@ -20,7 +18,6 @@ CLASS zcl_ai_node_tool DEFINITION
     METHODS zif_ai_node~set_configuration REDEFINITION.
 
   PROTECTED SECTION.
-*    DATA name          TYPE string.
     DATA tools         TYPE zif_ai_types=>th_tool_registry_map.
     DATA max_retries   TYPE i.
     DATA retry_delay_s TYPE i.
@@ -48,8 +45,7 @@ ENDCLASS.
 CLASS zcl_ai_node_tool IMPLEMENTATION.
 
   METHOD constructor.
-    super->constructor( node_id = node_id agent_id = agent_id node_name = name ).
-*    me->name = name.
+    super->constructor( node_name = name ).
     me->max_retries = max_retries.
     me->retry_delay_s = retry_delay_s.
   ENDMETHOD.
