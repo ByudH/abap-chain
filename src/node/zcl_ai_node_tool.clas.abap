@@ -155,6 +155,7 @@ CLASS zcl_ai_node_tool IMPLEMENTATION.
     TRY.
         logger->log_node(
           node_id  = me->node_id
+          node_name = node_name
           message  = |Executing tool "{ tool_entry-tool_name }" with retry.|
           severity = if_bali_constants=>c_severity_status ).
       CATCH cx_root.
