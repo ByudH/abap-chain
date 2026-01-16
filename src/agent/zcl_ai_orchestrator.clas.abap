@@ -111,7 +111,6 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
            WITH KEY source_node_id = current_node_id.
 
 
-
       IF sy-subrc <> 0 OR graph_entry-source_node IS INITIAL.
         " Inconsistent graph: node id not found → stop
         TRY.
@@ -129,7 +128,6 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
 
 
       " 2) Execute node (polymorphic via zif_ai_node)
-
       TRY.
           logger->log_node(
             node_id   = current_node_id
@@ -180,11 +178,28 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
       IF state-status = zif_ai_types=>gc_workflow_status_waiting
          AND state-hitl_correlation_id IS NOT INITIAL.
 
+        logger->log_orchestrator(
+            step         = step_count
+            current_node = current_node_id
+            next_node    = current_node_id
+            branch_label = state-branch_label
+            message      = |WAIT_ENTER corr_id={ state-hitl_correlation_id }|
+            severity     = if_bali_constants=>c_severity_status ).
+
+
         hitl->handle_wait(
         EXPORTING
             agent_id = agent_id    " or iv_agent_id
         CHANGING
             state    = state ).
+
+        logger->log_orchestrator(
+            step         = step_count
+            current_node = current_node_id
+            next_node    = current_node_id
+            branch_label = state-branch_label
+            message      = |WAIT_RESUME status="{ state-status }"|
+            severity     = if_bali_constants=>c_severity_information ).
 
       ENDIF.
 

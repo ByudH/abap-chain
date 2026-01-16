@@ -9,7 +9,11 @@ ENDCLASS.
 CLASS lcl_mock_node IMPLEMENTATION.
   METHOD do_execute.
     " Simulate node business logic: Append execution trace to messages
-    state-messages = state-messages && |[Node Executed] |.
+    state-messages = VALUE zif_ai_types=>tt_messages(
+      BASE state-messages
+      ( role    = zif_ai_types=>gc_role_assistant
+        content = '[Node Executed]' )
+    ).
     " Set a branch label for the orchestrator routing logic
     state-branch_label = 'SUCCESS'.
   ENDMETHOD.
@@ -53,21 +57,47 @@ CLASS lcl_test_orchestrator IMPLEMENTATION.
     ) INTO TABLE lt_graph.
 
     " D. Execute the Orchestrator
+*    DATA(ls_final_state) = zcl_ai_orchestrator=>run(
+*      agent_id     = lv_test_agent_id
+*      node_edge_graph = lt_graph
+*      start_node_id   = lv_test_node_id
+*      initial_state   = VALUE #( messages = 'Start: ' )
+*    ).
     DATA(ls_final_state) = zcl_ai_orchestrator=>run(
-      agent_id     = lv_test_agent_id
+      agent_id        = lv_test_agent_id
       node_edge_graph = lt_graph
       start_node_id   = lv_test_node_id
-      initial_state   = VALUE #( messages = 'Start: ' )
+      initial_state   = VALUE zif_ai_types=>ts_graph_state(
+        messages = VALUE zif_ai_types=>tt_messages(
+          ( role = zif_ai_types=>gc_role_user content = 'Start' )
+        )
+        status   = zif_ai_types=>gc_workflow_status_new
+      )
     ).
 
     " E. Result Assertions
 
     " 1. Verify if the node was actually executed (checking the message string)
     " We use CS (Contains String) operator for maximum compatibility across SAP versions
+*    cl_abap_unit_assert=>assert_true(
+*      act = boolc( ls_final_state-messages CS '[Node Executed]' )
+*      msg = 'Execution trace missing in final state'
+*    ).
+
+    DATA(found) = abap_false.
+    LOOP AT ls_final_state-messages ASSIGNING FIELD-SYMBOL(<m>).
+      IF <m>-content = '[Node Executed]'.
+        found = abap_true.
+        EXIT.
+      ENDIF.
+    ENDLOOP.
+
     cl_abap_unit_assert=>assert_true(
-      act = boolc( ls_final_state-messages CS '[Node Executed]' )
-      msg = 'Execution trace missing in final state'
+      act = found
+      msg = 'Execution trace missing in final state messages'
     ).
+
+
 
     " 2. Verify Database Persistence (Checkpoint)
     " The orchestrator should have saved exactly 1 record for this node execution
