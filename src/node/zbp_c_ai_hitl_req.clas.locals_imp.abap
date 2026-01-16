@@ -8,9 +8,14 @@ CLASS lhc_HitlReq DEFINITION INHERITING FROM cl_abap_behavior_handler.
       IMPORTING REQUEST requested_authorizations FOR HitlReq RESULT result.
 
     METHODS Respond FOR MODIFY
-      IMPORTING keys FOR ACTION HitlReq~Respond.
+      IMPORTING
+        keys FOR ACTION HitlReq~Respond.
+
     METHODS set_created_audit FOR DETERMINE ON MODIFY
-      IMPORTING keys FOR HitlReq~set_created_audit." RESULT result.
+      IMPORTING keys FOR HitlReq~set_created_audit.
+    METHODS set_responded_meta FOR DETERMINE ON MODIFY
+      IMPORTING keys FOR HitlReq~set_responded_meta.
+
 
 ENDCLASS.
 
@@ -24,29 +29,32 @@ CLASS lhc_HitlReq IMPLEMENTATION.
 
   METHOD Respond.
 
-    DATA current_time   TYPE timestampl.
+    DATA current_timestamp TYPE timestampl.
+    GET TIME STAMP FIELD current_timestamp.
+
     DATA current_user TYPE syuname.
 
-    GET TIME STAMP FIELD current_time.
-    current_user = cl_abap_context_info=>get_user_technical_name( ).
-
-    LOOP AT keys ASSIGNING FIELD-SYMBOL(<p>).
-
-      DATA(correlation_id)    = <p>-%param-CorrelationId.
-      DATA(payload) = <p>-%param-ResponsePayload.
+    LOOP AT keys ASSIGNING FIELD-SYMBOL(<k>).
 
       MODIFY ENTITIES OF zc_ai_hitl_req IN LOCAL MODE
         ENTITY HitlReq
-        UPDATE FIELDS ( Status ResponsePayload RespondedAt RespondedBy )
+        UPDATE FIELDS ( Status ResponsePayload )
         WITH VALUE #(
-          ( CorrelationId   = correlation_id
-            Status          = 'RESPONDED'
-            ResponsePayload = payload
-            RespondedAt     = current_time
-            RespondedBy     = current_user )
-        ).
+          ( %tky           = <k>-%tky
+            Status         = 'RESPONDED'
+            ResponsePayload = <k>-%param-ResponsePayload
+*            RespondedAt   = current_timestamp
+*            RespondedBy   = current_user
 
+*            %control-Status        = if_abap_behv=>mk-on
+*            %control-ResponsePayload = if_abap_behv=>mk-on
+*            %control-RespondedAt   = if_abap_behv=>mk-on
+*            %control-RespondedBy   = if_abap_behv=>mk-on
 
+            )
+        )
+        FAILED DATA(failed_local)
+        REPORTED DATA(reported_local).
 
     ENDLOOP.
 
@@ -68,6 +76,48 @@ CLASS lhc_HitlReq IMPLEMENTATION.
       ).
   ENDMETHOD.
 
+
+
+  METHOD set_responded_meta.
+
+  DATA current_time TYPE timestampl.
+  DATA current_user TYPE syuname.
+  GET TIME STAMP FIELD current_time.
+  current_user = cl_abap_context_info=>get_user_technical_name( ).
+
+  " Read changed instances
+  READ ENTITIES OF zc_ai_hitl_req IN LOCAL MODE
+    ENTITY HitlReq
+    FIELDS ( Status RespondedAt RespondedBy )
+    WITH CORRESPONDING #( keys )
+    RESULT DATA(result).
+
+  DATA to_update TYPE TABLE FOR UPDATE zc_ai_hitl_req\\HitlReq.
+
+  LOOP AT result ASSIGNING FIELD-SYMBOL(<r>).
+    IF <r>-Status = 'RESPONDED'
+       AND ( <r>-RespondedAt IS INITIAL OR <r>-RespondedBy IS INITIAL ).
+
+      APPEND VALUE #( %key = <r>-%key
+                      RespondedAt = COND #( WHEN <r>-RespondedAt IS INITIAL THEN current_time ELSE <r>-RespondedAt )
+                      RespondedBy = COND #( WHEN <r>-RespondedBy IS INITIAL THEN current_user ELSE <r>-RespondedBy )
+
+                      %control-RespondedAt = if_abap_behv=>mk-on
+                      %control-RespondedBy = if_abap_behv=>mk-on ) TO to_update.
+    ENDIF.
+  ENDLOOP.
+
+  IF to_update IS NOT INITIAL.
+    MODIFY ENTITIES OF zc_ai_hitl_req IN LOCAL MODE
+      ENTITY HitlReq
+      UPDATE FIELDS ( RespondedAt RespondedBy )
+      WITH to_update
+      FAILED DATA(failed_update)
+      REPORTED DATA(reported_update).
+  ENDIF.
+
+ENDMETHOD.
+
 ENDCLASS.
 
 CLASS lsc_ZC_AI_HITL_REQ DEFINITION INHERITING FROM cl_abap_behavior_saver.
@@ -83,9 +133,8 @@ CLASS lsc_ZC_AI_HITL_REQ IMPLEMENTATION.
 
   METHOD save_modified.
 
+    " Raise event only on create
     IF create-hitlreq IS NOT INITIAL.
-
-      " raise the event
       RAISE ENTITY EVENT zc_ai_hitl_req~HumanInputRequested
         FROM VALUE #(
           FOR req IN create-hitlreq (
@@ -100,7 +149,6 @@ CLASS lsc_ZC_AI_HITL_REQ IMPLEMENTATION.
             %param-ev_PrimaryResultField = req-PrimaryResultField
           )
         ).
-
     ENDIF.
 
   ENDMETHOD.

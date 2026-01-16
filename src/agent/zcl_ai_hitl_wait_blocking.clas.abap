@@ -44,20 +44,20 @@ CLASS zcl_ai_hitl_wait_blocking IMPLEMENTATION.
       SELECT SINGLE status, response_payload, primary_result_field
         FROM zai_hitl_req
         WHERE correlation_id = @state-hitl_correlation_id
-        INTO (@DATA(status), @DATA(payload), @DATA(primary)).
+        INTO (@DATA(db_status), @DATA(db_payload), @DATA(db_primary)).
 
-      IF sy-subrc = 0 AND status = 'RESPONDED'.
+      IF sy-subrc = 0 AND db_status = 'RESPONDED'.
 
-        state-hitl_response_payload = payload.
+        state-hitl_response_payload = db_payload.
         state-status = zif_ai_types=>gc_workflow_status_running.
 
-        IF primary IS INITIAL.
-          primary = state-hitl_primary_field.
+        IF db_primary IS INITIAL.
+          db_primary = state-hitl_primary_field.
         ENDIF.
 
         state-branch_label = extract_branch_label(
-          payload = payload
-          primary = CONV string( primary ) ).
+          payload = db_payload
+          primary = CONV string( db_primary ) ).
 
         RETURN.
       ENDIF.

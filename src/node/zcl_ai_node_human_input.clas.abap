@@ -24,8 +24,6 @@ CLASS zcl_ai_node_human_input DEFINITION
     METHODS do_execute REDEFINITION.
 
   PRIVATE SECTION.
-    DATA _node_id  TYPE zif_ai_types=>ty_node_id.
-    DATA _agent_id TYPE zif_ai_types=>ty_agent_id.
 
     DATA _topic   TYPE string.
     DATA _reason  TYPE string.
@@ -51,37 +49,40 @@ CLASS zcl_ai_node_human_input IMPLEMENTATION.
     _schema  = schema.
     _primary = primary.
 
-    _requester = COND #( WHEN _requester IS BOUND
-                           THEN _requester
-                           ELSE NEW zcl_ai_hitl_request_service( ) ).
+    _requester = COND #( WHEN requester IS BOUND
+                       THEN requester
+                       ELSE NEW zcl_ai_hitl_request_service( ) ).
   ENDMETHOD.
 
   METHOD do_execute.
 
-
-    " Idempotency: if correlation already exists, don't create a second request
     IF state-hitl_correlation_id IS INITIAL.
       state-hitl_correlation_id = cl_system_uuid=>create_uuid_x16_static( ).
     ENDIF.
 
-    SELECT SINGLE correlation_id
-  FROM zai_hitl_req
-  WHERE correlation_id = @state-hitl_correlation_id
-  INTO @DATA(dummy).
-
+    " Fill state
     state-hitl_topic           = _topic.
     state-hitl_reason          = _reason.
     state-hitl_prompt          = _prompt.
     state-hitl_response_schema = _schema.
     state-hitl_primary_field   = _primary.
 
-    _requester->request_input(
-      agent_id = _agent_id
-      node_id  = _node_id
-      state    = state ).
+    " Create request if not exists
+    SELECT SINGLE correlation_id
+      FROM zai_hitl_req
+      WHERE correlation_id = @state-hitl_correlation_id
+      INTO @DATA(dummy).
 
-    state-status = zif_ai_types=>gc_workflow_status_waiting.
-    state-branch_label = 'WAITING_FOR_HUMAN'.
+    IF sy-subrc <> 0.
+      _requester->request_input(
+        agent_id = me->agent_id
+        node_id  = me->node_id
+        state    = state ).
+    ENDIF.
+
+    state-status       = zif_ai_types=>gc_workflow_status_waiting.
+    state-branch_label = zif_ai_types=>gc_workflow_status_waiting.
+
   ENDMETHOD.
 
 ENDCLASS.
