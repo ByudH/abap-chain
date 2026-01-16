@@ -20,6 +20,7 @@ CLASS zcl_ai_agent DEFINITION
     " Factory method – called by the builder
     CLASS-METHODS create
       IMPORTING
+        agent_id type zif_ai_types=>ty_agent_id
         agent_name      TYPE string
         node_edge_graph TYPE zif_ai_types=>th_graph_map
         start_node_id   TYPE zif_ai_types=>ty_node_id
@@ -33,6 +34,13 @@ CLASS zcl_ai_agent DEFINITION
       RETURNING
         VALUE(final_state) TYPE zif_ai_types=>ts_graph_state.
 
+    METHODS resume_from_checkpoint
+      IMPORTING
+        checkpoint_id      TYPE zai_checkpoint-checkpoint_id
+        hitl_primary       TYPE string OPTIONAL
+      RETURNING
+        VALUE(final_state) TYPE zif_ai_types=>ts_graph_state.
+
     " Methods for serialization
     METHODS get_agent_blueprint
       RETURNING
@@ -41,17 +49,11 @@ CLASS zcl_ai_agent DEFINITION
 
     METHODS constructor
       IMPORTING
+        agent_id type zif_ai_types=>ty_agent_id
         agent_name      TYPE string
         node_edge_graph TYPE zif_ai_types=>th_graph_map
         start_node_id   TYPE zif_ai_types=>ty_node_id
         tools           TYPE zif_ai_types=>th_tool_registry_map.
-
-    METHODS resume_from_checkpoint
-      IMPORTING
-        checkpoint_id      TYPE zai_checkpoint-checkpoint_id
-        hitl_primary       TYPE string OPTIONAL
-      RETURNING
-        VALUE(final_state) TYPE zif_ai_types=>ts_graph_state.
 
 ENDCLASS.
 
@@ -84,10 +86,8 @@ CLASS zcl_ai_agent IMPLEMENTATION.
 
   METHOD constructor.
     " Basic metadata
+    me->agent_id = agent_id.
     me->agent_name = agent_name.
-
-    " Create a new agent_id
-    me->agent_id = zcl_ai_utils=>generate_uuid( ).
 
     " Graph structure
     me->node_edge_graph = node_edge_graph.
@@ -100,64 +100,66 @@ CLASS zcl_ai_agent IMPLEMENTATION.
 
   METHOD resume_from_checkpoint.
 
-  DATA agent_id TYPE zif_ai_types=>ty_agent_id.
-  DATA node_id  TYPE zif_ai_types=>ty_node_id.
-  DATA state   TYPE zif_ai_types=>ts_graph_state.
+    DATA agent_id TYPE zif_ai_types=>ty_agent_id.
+    DATA node_id  TYPE zif_ai_types=>ty_node_id.
+    DATA state   TYPE zif_ai_types=>ts_graph_state.
 
-  zcl_ai_orchestrator=>resume_checkpoint(
-    EXPORTING
-      checkpoint_id = checkpoint_id
-    IMPORTING
-      agent_id      = agent_id
-      node_id       = node_id
-      state         = state ).
+    zcl_ai_orchestrator=>resume_checkpoint(
+      EXPORTING
+        checkpoint_id = checkpoint_id
+      IMPORTING
+        agent_id      = agent_id
+        node_id       = node_id
+        state         = state ).
 
-  " Ensure we have corr id to fetch the HITL answer
-  IF state-hitl_correlation_id IS INITIAL.
-    state-status = zif_ai_types=>gc_workflow_status_error.
-    state-branch_label = 'NO_CORR_ID'.
-    final_state = state.
-    RETURN.
-  ENDIF.
+    " Ensure we have corr id to fetch the HITL answer
+    IF state-hitl_correlation_id IS INITIAL.
+      state-status = zif_ai_types=>gc_workflow_status_error.
+      state-branch_label = 'NO_CORR_ID'.
+      final_state = state.
+      RETURN.
+    ENDIF.
 
-  " Load HITL response
-  SELECT SINGLE status, response_payload, primary_result_field
-    FROM zai_hitl_req
-    WHERE correlation_id = @state-hitl_correlation_id
-    INTO (@DATA(db_status), @DATA(db_payload), @DATA(db_primary)).
+    " Load HITL response
+    SELECT SINGLE status, response_payload, primary_result_field
+      FROM zai_hitl_req
+      WHERE correlation_id = @state-hitl_correlation_id
+      INTO (@DATA(db_status), @DATA(db_payload), @DATA(db_primary)).
 
-  IF sy-subrc <> 0 OR db_status <> 'RESPONDED'.
-    state-status = zif_ai_types=>gc_workflow_status_waiting.
-    final_state = state.
-    RETURN.
-  ENDIF.
+    IF sy-subrc <> 0 OR db_status <> 'RESPONDED'.
+      state-status = zif_ai_types=>gc_workflow_status_waiting.
+      final_state = state.
+      RETURN.
+    ENDIF.
 
-  state-hitl_response_payload = db_payload.
-  state-status                = zif_ai_types=>gc_workflow_status_running.
+    state-hitl_response_payload = db_payload.
+    state-status                = zif_ai_types=>gc_workflow_status_running.
 
-  IF db_primary IS INITIAL.
-    db_primary = state-hitl_primary_field.
-  ENDIF.
+    IF db_primary IS INITIAL.
+      db_primary = state-hitl_primary_field.
+    ENDIF.
 
-  state-branch_label = zcl_ai_orchestrator=>extract_branch_label(
-    payload = db_payload
-    primary = CONV string( db_primary ) ).
+    state-branch_label = zcl_ai_orchestrator=>extract_branch_label(
+      payload = db_payload
+      primary = CONV string( db_primary ) ).
 
-  " IMPORTANT: do not re-execute the HITL node; continue routing from it
-  state-skip_current_execute = abap_true.
+    " IMPORTANT: do not re-execute the HITL node; continue routing from it
+    state-skip_current_execute = abap_true.
 
-  final_state = zcl_ai_orchestrator=>run(
-    agent_id        = me->agent_id        " must match
-    node_edge_graph = me->node_edge_graph
-    start_node_id   = node_id             " resume at the checkpoint node
-    initial_state   = state
-    hitl_wait       = NEW zcl_ai_hitl_wait_pause_check( ) ). " or a no-op
+    final_state = zcl_ai_orchestrator=>run(
+      agent_id        = me->agent_id        " must match
+      node_edge_graph = me->node_edge_graph
+      start_node_id   = node_id             " resume at the checkpoint node
+      initial_state   = state
+      hitl_wait       = NEW zcl_ai_hitl_wait_pause_check( ) ). " or a no-op
 
-ENDMETHOD.
+  ENDMETHOD.
+
 
   METHOD create.
     CREATE OBJECT agent
       EXPORTING
+        agent_id        = agent_id
         agent_name      = agent_name
         node_edge_graph = node_edge_graph
         start_node_id   = start_node_id

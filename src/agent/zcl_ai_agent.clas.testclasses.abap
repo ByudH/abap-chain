@@ -41,8 +41,6 @@ CLASS ltzcl_ai_agent_test IMPLEMENTATION.
 
     " --- Tool Node ---
     tool_node = NEW zcl_ai_node_tool(
-      node_id  = tool_node_id
-      agent_id = agent_id
       name     = 'Tool Executor'
     ).
 
