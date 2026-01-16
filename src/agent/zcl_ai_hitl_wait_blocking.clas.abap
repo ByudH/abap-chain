@@ -15,12 +15,6 @@ CLASS zcl_ai_hitl_wait_blocking DEFINITION
     DATA poll    TYPE i.
     DATA timeout TYPE i.
 
-    METHODS extract_branch_label
-      IMPORTING
-        payload TYPE string
-        primary TYPE string
-      RETURNING
-        VALUE(label) TYPE string.
 ENDCLASS.
 
 CLASS zcl_ai_hitl_wait_blocking IMPLEMENTATION.
@@ -55,7 +49,7 @@ CLASS zcl_ai_hitl_wait_blocking IMPLEMENTATION.
           db_primary = state-hitl_primary_field.
         ENDIF.
 
-        state-branch_label = extract_branch_label(
+        state-branch_label = zcl_ai_orchestrator=>extract_branch_label(
           payload = db_payload
           primary = CONV string( db_primary ) ).
 
@@ -70,26 +64,6 @@ CLASS zcl_ai_hitl_wait_blocking IMPLEMENTATION.
     state-status = zif_ai_types=>gc_workflow_status_error.
     state-branch_label = 'TIMEOUT'.
 
-  ENDMETHOD.
-
-  METHOD extract_branch_label.
-    " TODO: replace with real JSON parsing
-    DATA primary_value TYPE string.
-    primary_value = primary.
-
-    TRANSLATE primary_value TO LOWER CASE.
-
-    IF primary_value = 'approved'.
-      IF payload CS '"approved":true'
-         OR payload CS '"approved" : true'
-         OR payload CS '"approved": true'.
-        label = 'APPROVED'.
-      ELSE.
-        label = 'REJECTED'.
-      ENDIF.
-    ELSE.
-      label = 'HITL_DONE'.
-    ENDIF.
   ENDMETHOD.
 
 ENDCLASS.

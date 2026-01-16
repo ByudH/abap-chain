@@ -7,8 +7,6 @@ CLASS zcl_ai_orchestrator DEFINITION
 
     CLASS-METHODS run
       IMPORTING
-*        it_nodes         TYPE zif_ai_types=>tt_node_registry_lh
-*        it_edges         TYPE zif_ai_types=>tt_edge_lh
         agent_id           TYPE zif_ai_types=>ty_agent_id
         node_edge_graph    TYPE zif_ai_types=>th_graph_map
         start_node_id      TYPE zif_ai_types=>ty_node_id
@@ -17,13 +15,14 @@ CLASS zcl_ai_orchestrator DEFINITION
       RETURNING
         VALUE(final_state) TYPE zif_ai_types=>ts_graph_state.
 
-  PRIVATE SECTION.
     " US2.3: Save the current graph state to the database
     CLASS-METHODS save_checkpoint
       IMPORTING
-        agent_id TYPE zif_ai_types=>ty_agent_id
-        node_id  TYPE zif_ai_types=>ty_node_id
-        state    TYPE zif_ai_types=>ts_graph_state.
+        agent_id             TYPE zif_ai_types=>ty_agent_id
+        node_id              TYPE zif_ai_types=>ty_node_id
+        state                TYPE zif_ai_types=>ts_graph_state
+      RETURNING
+        VALUE(checkpoint_id) TYPE zai_checkpoint-checkpoint_id.
 
     " US2.4 — Resume execution from a checkpoint
     CLASS-METHODS resume_checkpoint
@@ -33,6 +32,13 @@ CLASS zcl_ai_orchestrator DEFINITION
         agent_id      TYPE zif_ai_types=>ty_agent_id
         node_id       TYPE zif_ai_types=>ty_node_id
         state         TYPE zif_ai_types=>ts_graph_state.
+
+    CLASS-METHODS extract_branch_label
+     IMPORTING payload TYPE string primary TYPE string
+     RETURNING VALUE(label) TYPE string.
+
+  PRIVATE SECTION.
+
 
 ENDCLASS.
 
@@ -146,14 +152,6 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
             CHANGING
               state = state ).
 
-          " --- US2.3: PERSISTENCE POINT ---
-          " Save state immediately after successful node execution to capture
-          " the latest changes (e.g., LLM responses or tool outputs).
-          zcl_ai_orchestrator=>save_checkpoint(
-            agent_id = agent_id
-            node_id  = current_node_id
-            state    = state
-          ).
 
         CATCH cx_root INTO DATA(ex).
           TRY.
@@ -188,12 +186,24 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
           message      = |WAIT_ENTER corr_id={ state-hitl_correlation_id }|
           severity     = if_bali_constants=>c_severity_status ).
 
+        " --- US2.3: PERSISTENCE POINT ---
+        " Save state immediately after successful node execution to capture
+        " the latest changes (e.g., LLM responses or tool outputs).
+        zcl_ai_orchestrator=>save_checkpoint(
+          agent_id = agent_id
+          node_id  = current_node_id
+          state    = state
+        ).
 
         hitl->handle_wait(
           EXPORTING
             agent_id = agent_id    " or iv_agent_id
           CHANGING
             state    = state ).
+
+        IF state-status = zif_ai_types=>gc_workflow_status_paused.
+          EXIT.
+        ENDIF.
 
         logger->log_orchestrator(
           step         = step_count
@@ -204,6 +214,7 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
           severity     = if_bali_constants=>c_severity_information ).
 
       ENDIF.
+
 
 
       " 3) Collect outgoing edges for this node
@@ -320,6 +331,8 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
           " Optional: Log failure if database insertion fails
         ENDIF.
 
+        checkpoint_id = ls_checkpoint-checkpoint_id.
+
       CATCH cx_uuid_error.
         " Handle UUID generation exception if necessary
     ENDTRY.
@@ -353,6 +366,26 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
     node_id  = ls_checkpoint-node_id.
     agent_id = ls_checkpoint-agent_id.
 
+  ENDMETHOD.
+
+  METHOD extract_branch_label.
+    " TODO: replace with real JSON parsing
+    DATA primary_value TYPE string.
+    primary_value = primary.
+
+    TRANSLATE primary_value TO LOWER CASE.
+
+    IF primary_value = 'approved'.
+      IF payload CS '"approved":true'
+         OR payload CS '"approved" : true'
+         OR payload CS '"approved": true'.
+        label = 'APPROVED'.
+      ELSE.
+        label = 'REJECTED'.
+      ENDIF.
+    ELSE.
+      label = 'HITL_DONE'.
+    ENDIF.
   ENDMETHOD.
 
 ENDCLASS.

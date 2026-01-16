@@ -44,6 +44,9 @@ INTERFACE zif_ai_types
            hitl_response_schema  TYPE string,  " JSON schema string
            hitl_primary_field    TYPE string,  " e.g. 'approved'
            hitl_response_payload TYPE string,  " response JSON string
+           skip_current_execute  TYPE ABAP_Boolean, "skip current node after hitl resume"
+           last_checkpoint_id     TYPE zai_checkpoint-checkpoint_id,
+           paused_checkpoint_id   TYPE zai_checkpoint-checkpoint_id,
 
          END OF ts_graph_state.
   " Shared Structure for tool registry
@@ -148,7 +151,7 @@ INTERFACE zif_ai_types
 
   " HITL
   CONSTANTS gc_workflow_status_waiting  TYPE string VALUE 'WAITING_FOR_HUMAN'.
-
+  CONSTANTS gc_workflow_status_paused  TYPE string VALUE 'PAUSED_FOR_HITL'.
   " =========================================================
 
 
