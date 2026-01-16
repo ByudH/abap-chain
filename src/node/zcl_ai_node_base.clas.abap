@@ -48,7 +48,7 @@ CLASS zcl_ai_node_base IMPLEMENTATION.
   METHOD do_execute.
     DATA(new_message) = VALUE zif_ai_types=>ts_message(
     role    = zif_ai_types=>gc_role_assistant
-    message = |Base Node { me->node_id } of agent { me->agent_id } executed.|
+    content = |Base Node { me->node_id } of agent { me->agent_id } executed.|
     ).
 
     APPEND new_message TO state-messages.
@@ -57,17 +57,17 @@ CLASS zcl_ai_node_base IMPLEMENTATION.
   METHOD zif_ai_node~get_node_id.
     node_id = me->node_id.
   ENDMETHOD.
+
   METHOD log_message.
-    "implement logger
-    TRY.
-        DATA(logger) = zcl_abapchain_logger=>get_instance( ).
-        logger->log_node(
-          node_id  = me->node_id
-          message  = message
-          severity = severity
-        ).
-      CATCH cx_root.
-    ENDTRY.
+    DATA(logger) = zcl_abapchain_logger=>get_instance( ).
+    logger->log_node_ref(
+      node     = me
+      message  = message
+      severity = severity ).
+  ENDMETHOD.
+
+  METHOD zif_ai_node~get_node_name.
+    node_name = me->node_name.
   ENDMETHOD.
 
   METHOD zif_ai_node~get_node_type.

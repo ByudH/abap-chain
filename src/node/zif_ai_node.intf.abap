@@ -15,6 +15,9 @@ INTERFACE zif_ai_node
     RETURNING
       VALUE(node_id) TYPE zif_ai_types=>ty_node_id.
 
+ METHODS get_node_name
+    RETURNING VALUE(node_name) TYPE string.
+
   METHODS get_node_type
     RETURNING
       VALUE(node_type) TYPE string.

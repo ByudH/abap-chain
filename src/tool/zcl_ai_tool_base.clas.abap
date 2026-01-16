@@ -20,17 +20,10 @@ CLASS zcl_ai_tool_base DEFINITION
                   input  TYPE string
         EXPORTING
                   output TYPE string
-        RAISING   cx_root,
+        RAISING   cx_root.
 
-      log_call_stub
-        IMPORTING
-          input  TYPE string
-          output TYPE string
-          status TYPE string
-          error  TYPE string OPTIONAL.
-
-      METHODS define_argument_metadata
-        RETURNING VALUE(arguments) TYPE zcl_tool_schema=>tt_tool_arguments.
+    METHODS define_argument_metadata
+      RETURNING VALUE(arguments) TYPE zcl_tool_schema=>tt_tool_arguments.
 
     DATA name TYPE string.
     DATA description TYPE string.
@@ -53,10 +46,10 @@ CLASS zcl_ai_tool_base IMPLEMENTATION.
     description = me->description.
   ENDMETHOD.
 
-  method zif_ai_tool~get_tool_type.
+  METHOD zif_ai_tool~get_tool_type.
     DATA(type_descr) = cl_abap_typedescr=>describe_by_object_ref( me ).
     tool_type = type_descr->get_relative_name( ).
-  endmethod.
+  ENDMETHOD.
 
   METHOD do_execute.
     " ------------------------------------------------------------
@@ -66,63 +59,36 @@ CLASS zcl_ai_tool_base IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD zif_ai_tool~execute.
-    " ------------------------------------------------------------
-    " wraps do_execute with added logging and error handling
-    " ------------------------------------------------------------
-    " No need to declare another local variable to save tool output
-    " DATA tool_output TYPE string.
-    DATA exit_status TYPE string VALUE 'SUCCESS'.
-    DATA error  TYPE string.
-
-
     DATA(logger) = zcl_abapchain_logger=>get_instance( ).
 
+    logger->log_tool_ctx(
+      node     = calling_node
+      tool     = me
+      message  = |execute start. input_len={ strlen( input ) }.|
+      severity = if_bali_constants=>c_severity_information ).
+
     TRY.
-        logger->log_tool(
-          node_id   = '00000000000000000000000000000000' "unknown here
-          node_name = '(tool)'
-          tool_name = me->name  " or me->name
-          message   = |Tool execute start. input_len={ strlen( input ) }.|
-          severity  = if_bali_constants=>c_severity_information ).
-      CATCH cx_root.
+        do_execute( EXPORTING input = input IMPORTING output = output ).
+        status = 0.
+      CATCH cx_root INTO DATA(ex).
+        status = 1.
+        logger->log_tool_ctx(
+          node     = calling_node
+          tool     = me
+          message  = |execute FAILED: { ex->get_text( ) }|
+          severity = if_bali_constants=>c_severity_error ).
+
+        RAISE EXCEPTION NEW zcx_ai_tool_error( error_message = |Tool "{ me->name }" failed: { ex->get_text( ) }| ).
+
     ENDTRY.
 
-    TRY.
-      do_execute(
-        EXPORTING
-          input  = input
-        IMPORTING
-          output = output ).
-    CATCH cx_root INTO DATA(ex).
-      TRY.
-          logger->log_error(
-            message = |Tool "{ me->name }" failed: { ex->get_text( ) }| ).
-        CATCH cx_root.
-      ENDTRY.
-      RAISE EXCEPTION ex.
-  ENDTRY.
-
-  TRY.
-      logger->log_tool(
-        node_id   = '00000000000000000000000000000000'
-        node_name = '(tool)'
-        tool_name = me->name
-        message   = |Tool execute end. output_len={ strlen( output ) }.|
-        severity  = if_bali_constants=>c_severity_information ).
-    CATCH cx_root.
-  ENDTRY.
-ENDMETHOD.
-
-
-  METHOD log_call_stub.
-    " ------------------------------------------------------------
-    " Logging stub for PoC:
-    " - Called after every tool execution (success or error)
-    " - Later:
-    "   - use https://help.sap.com/docs/sap-btp-abap-environment/abap-environment/create-new-application-log
-    "   - attach RUN_STEP_ID / AGENT_RUN_ID
-    " ------------------------------------------------------------
+    logger->log_tool_ctx(
+      node     = calling_node
+      tool     = me
+      message  = |execute end. output_len={ strlen( output ) }.|
+      severity = if_bali_constants=>c_severity_information ).
   ENDMETHOD.
+
 
   METHOD zif_ai_tool~get_argument_metadata.
     " Delegate to protected method that subclasses can override
