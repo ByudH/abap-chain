@@ -9,8 +9,6 @@ CLASS zcl_ai_node_llm_planner DEFINITION
 
     METHODS constructor
       IMPORTING
-        node_id    TYPE zif_ai_types=>ty_node_id
-        agent_id   TYPE zif_ai_types=>ty_agent_id
         name       TYPE string
         llm_client TYPE REF TO zcl_ai_llm_client OPTIONAL.
 
@@ -45,7 +43,7 @@ ENDCLASS.
 CLASS zcl_ai_node_llm_planner IMPLEMENTATION.
 
   METHOD constructor.
-    super->constructor( node_id = node_id agent_id = agent_id node_name = me->name ).
+    super->constructor( node_name = me->name ).
     me->name = name.
     me->llm_client = llm_client.
   ENDMETHOD.
@@ -72,7 +70,7 @@ CLASS zcl_ai_node_llm_planner IMPLEMENTATION.
     DATA messages_upper TYPE string.
     "messages_upper = to_upper( state-messages ).
 
-    messages_upper = state-messages.
+    messages_upper = zcl_ai_utils=>messages_to_string( state-messages ).
     TRANSLATE messages_upper TO UPPER CASE.
 
     " TODO: TODO: Use LLM to determine tool to use
@@ -104,6 +102,7 @@ CLASS zcl_ai_node_llm_planner IMPLEMENTATION.
 
     TRY.
         logger->log_node(
+          node_name = me->name
           node_id   = me->node_id
           message   = |Planner step. Catalog tools={ lines( tool_catalog ) }.|
           severity  = if_bali_constants=>c_severity_status ).
@@ -112,10 +111,7 @@ CLASS zcl_ai_node_llm_planner IMPLEMENTATION.
 
     " If no catalog -> cannot plan tool usage
     IF tool_catalog IS INITIAL.
-      state-messages = state-messages &&
-        cl_abap_char_utilities=>newline &&
-        |[Planner { name }] No tool catalog injected. Ending.|.
-
+      APPEND VALUE #( role = zif_ai_types=>gc_role_error content = |[Planner { name }] No tool catalog injected. Ending.| ) TO state-messages.
       state-branch_label = 'END'.
       RETURN.
     ENDIF.
@@ -135,8 +131,8 @@ CLASS zcl_ai_node_llm_planner IMPLEMENTATION.
     IF state-last_tool_name = 'table_info'.
       state-branch_label   = 'TOOL'.
       state-last_tool_name = 'risk_check'.
-      state-messages = state-messages && cl_abap_char_utilities=>newline &&
-        |[Planner { name }] Next: tool "risk_check".|.
+      APPEND VALUE #( role = zif_ai_types=>gc_role_tool content = |[Planner { name }] Next: tool "risk_check".| ) TO state-messages.
+
       RETURN.
     ELSEIF state-last_tool_name = 'risk_check'.
 
@@ -152,8 +148,8 @@ CLASS zcl_ai_node_llm_planner IMPLEMENTATION.
       state-hitl_primary_field   = 'approved'.
       state-hitl_response_schema = '{ "type":"object", "properties": { "approved": { "type":"boolean" } }, "required": ["approved"] }'.
 
-      state-messages = state-messages && cl_abap_char_utilities=>newline &&
-        |[Planner { name }] Risk check done. Routing to HITL approval.|.
+      APPEND VALUE #( role = zif_ai_types=>gc_role_tool content = |[Planner { name }] Risk check done. Routing to HITL approval.| ) TO state-messages.
+
 
 *    state-branch_label = 'FINAL'.
 *      state-messages = state-messages && cl_abap_char_utilities=>newline &&
@@ -167,9 +163,7 @@ CLASS zcl_ai_node_llm_planner IMPLEMENTATION.
     DATA(next_tool) = pick_tool_heuristic( state ).
 
     IF next_tool IS INITIAL.
-      state-messages = state-messages &&
-        cl_abap_char_utilities=>newline &&
-        |[Planner { name }] Could not pick a tool. Ending.|.
+      APPEND VALUE #( role = zif_ai_types=>gc_role_error content = |[Planner { name }] Could not pick a tool. Ending.| ) TO state-messages.
 
       state-branch_label = 'END'.
       RETURN.
@@ -179,15 +173,14 @@ CLASS zcl_ai_node_llm_planner IMPLEMENTATION.
     state-branch_label   = 'TOOL'.
     state-last_tool_name = next_tool.
 
-    state-messages = state-messages &&
-      cl_abap_char_utilities=>newline &&
-      |[Planner { name }] Request tool "{ next_tool }".|.
+    APPEND VALUE #( role = zif_ai_types=>gc_role_tool content =      |[Planner { name }] Request tool "{ next_tool }".| ) TO state-messages.
 
     TRY.
         logger->log_node(
-          node_id   = me->node_id
-          message   = |Route TOOL. requested="{ next_tool }".|
-          severity  = if_bali_constants=>c_severity_information ).
+          node_name = me->name
+          node_id  = me->node_id
+          message  = |Route TOOL. requested="{ next_tool }".|
+          severity = if_bali_constants=>c_severity_information ).
       CATCH cx_root.
     ENDTRY.
 
@@ -197,7 +190,7 @@ CLASS zcl_ai_node_llm_planner IMPLEMENTATION.
     needs_hitl = abap_false.
 
     DATA text TYPE string.
-    text = state-messages.
+    text = zcl_ai_utils=>messages_to_string( state-messages ).
     TRANSLATE text TO UPPER CASE.
 
     " Heuristic triggers
