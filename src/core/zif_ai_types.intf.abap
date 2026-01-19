@@ -35,6 +35,7 @@ INTERFACE zif_ai_types
            branch_label          TYPE string,  "routing: ON_LABEL"
            result_json           TYPE string,  "final output"
            status                TYPE string,  "workflow execution status (e.g., RETRYING, ERROR)"
+           tool_arguments      TYPE string, "Indri"
 
            " HITL
            hitl_correlation_id   TYPE sysuuid_x16,
