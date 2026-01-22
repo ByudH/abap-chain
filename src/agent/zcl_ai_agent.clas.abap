@@ -20,7 +20,7 @@ CLASS zcl_ai_agent DEFINITION
     " Factory method – called by the builder
     CLASS-METHODS create
       IMPORTING
-        agent_id type zif_ai_types=>ty_agent_id
+        agent_id        TYPE zif_ai_types=>ty_agent_id
         agent_name      TYPE string
         node_edge_graph TYPE zif_ai_types=>th_graph_map
         start_node_id   TYPE zif_ai_types=>ty_node_id
@@ -31,6 +31,7 @@ CLASS zcl_ai_agent DEFINITION
     METHODS run
       IMPORTING
         initial_state      TYPE zif_ai_types=>ts_graph_state OPTIONAL
+        start_node_id      TYPE zif_ai_types=>ty_node_id OPTIONAL
       RETURNING
         VALUE(final_state) TYPE zif_ai_types=>ts_graph_state.
 
@@ -49,7 +50,7 @@ CLASS zcl_ai_agent DEFINITION
 
     METHODS constructor
       IMPORTING
-        agent_id type zif_ai_types=>ty_agent_id
+        agent_id        TYPE zif_ai_types=>ty_agent_id
         agent_name      TYPE string
         node_edge_graph TYPE zif_ai_types=>th_graph_map
         start_node_id   TYPE zif_ai_types=>ty_node_id
@@ -70,6 +71,11 @@ CLASS zcl_ai_agent IMPLEMENTATION.
         logger->log_error( err->get_text( ) ).
         " Logging must never break execution
     ENDTRY.
+
+    " in case the agent is restarted from a different node
+    IF start_node_id IS NOT INITIAL.
+      me->start_node_id = start_node_id.
+    ENDIF.
 
     final_state = zcl_ai_orchestrator=>run(
       agent_id        = me->agent_id

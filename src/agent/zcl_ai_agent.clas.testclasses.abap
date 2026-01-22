@@ -7,14 +7,16 @@ CLASS ltzcl_ai_agent_test DEFINITION FINAL FOR TESTING
     METHODS:
       setup,
       serialize_agent_to_blueprint   FOR TESTING RAISING cx_static_check,
-      deserialize_blueprint_to_agent FOR TESTING RAISING cx_static_check.
+      deserialize_blueprint_to_agent FOR TESTING RAISING cx_static_check,
+      bp_to_db_record                FOR TESTING RAISING cx_static_check.
+
     DATA:
-      blueprint    TYPE zif_ai_types=>ts_agent_blueprint,
-      agent        TYPE REF TO zcl_ai_agent,
-      tool_table   TYPE REF TO zif_ai_tool,
-      tool_risk    TYPE REF TO zif_ai_tool,
-      llm_node     TYPE REF TO zcl_ai_node_llm,
-      tool_node    TYPE REF TO zcl_ai_node_tool.
+      blueprint  TYPE zif_ai_types=>ts_agent_blueprint,
+      agent      TYPE REF TO zcl_ai_agent,
+      tool_table TYPE REF TO zif_ai_tool,
+      tool_risk  TYPE REF TO zif_ai_tool,
+      llm_node   TYPE REF TO zcl_ai_node_llm,
+      tool_node  TYPE REF TO zcl_ai_node_tool.
     DATA builder TYPE REF TO zcl_ai_agent_builder.
 ENDCLASS.
 
@@ -168,7 +170,7 @@ CLASS ltzcl_ai_agent_test IMPLEMENTATION.
       exp = 'ABAPCHAIN_DEMO'
       msg = 'Agent name should match' ).
 
-      cl_abap_unit_assert=>assert_equals(
+    cl_abap_unit_assert=>assert_equals(
       act = blueprint-agent_id
       exp = agent->agent_id
       msg = 'Agent id should match' ).
@@ -342,6 +344,17 @@ CLASS ltzcl_ai_agent_test IMPLEMENTATION.
           exp = actual_agent->node_edge_graph[ source_node_id = actual_edge-target_node_id ]-source_node ).
       ENDLOOP.
     ENDLOOP.
+  ENDMETHOD.
+
+  METHOD bp_to_db_record.
+    data(agent_blueprint) = agent->get_agent_blueprint( ).
+    zcl_ai_agent_repository=>save_agent_blueprint( agent_blueprint ).
+    data(loaded_blueprint) = zcl_ai_agent_repository=>load_agent_blueprint( agent_id = agent_blueprint-agent_id ).
+    cl_abap_unit_assert=>assert_equals(
+      act = loaded_blueprint
+      exp = agent_blueprint
+      msg = 'Blueprint should match' ).
+
   ENDMETHOD.
 
 ENDCLASS.
