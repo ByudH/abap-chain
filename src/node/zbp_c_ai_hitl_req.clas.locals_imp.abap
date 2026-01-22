@@ -40,24 +40,56 @@ CLASS lhc_HitlReq IMPLEMENTATION.
         ENTITY HitlReq
         UPDATE FIELDS ( Status ResponsePayload )
         WITH VALUE #(
-          ( %tky           = <k>-%tky
-            Status         = 'RESPONDED'
+          ( %tky            = <k>-%tky
+            Status          = 'RESPONDED'
             ResponsePayload = <k>-%param-ResponsePayload
-*            RespondedAt   = current_timestamp
-*            RespondedBy   = current_user
 
-*            %control-Status        = if_abap_behv=>mk-on
-*            %control-ResponsePayload = if_abap_behv=>mk-on
-*            %control-RespondedAt   = if_abap_behv=>mk-on
-*            %control-RespondedBy   = if_abap_behv=>mk-on
-
-            )
-        )
+          )
+      )
         FAILED DATA(failed_local)
         REPORTED DATA(reported_local).
 
     ENDLOOP.
 
+*    TODO: restart agent here
+*    DATA(restart_agent_result) = builder => rebuild (agent_id) => resume_from_checkpoint ( optional checkpoint ).
+
+    " assume the batch of requests share the same correlation id and agent id
+    DATA(correlation_id) = <k>-%param-CorrelationId.
+    SELECT SINGLE agent_id
+     FROM zai_hitl_req
+     WHERE correlation_id = @correlation_id
+     INTO @DATA(agent_id).
+
+    IF sy-subrc <> 0.
+
+    ENDIF.
+
+    SELECT checkpoint_id
+     FROM zai_checkpoint
+     WHERE agent_id = @agent_id
+     ORDER BY timestamp DESCENDING
+     INTO @DATA(latest_checkpoint_id)
+     UP TO 1 ROWS.
+    ENDSELECT.
+
+    " agent id in the checkpoint must be the same as the one we have
+    DATA latest_status TYPE zif_ai_types=>ts_graph_state.
+    DATA node_id TYPE zif_ai_types=>ty_node_id.
+
+    zcl_ai_orchestrator=>resume_checkpoint( EXPORTING checkpoint_id = latest_checkpoint_id
+                                            IMPORTING agent_id      = agent_id
+                                                      node_id       = node_id
+                                                      state         = latest_status ).
+    " start the agent only if the workflow status is paused
+    IF latest_status-status = zif_ai_types=>gc_workflow_status_paused.
+      latest_status-status = zif_ai_types=>gc_workflow_status_running.
+      zcl_ai_agent_builder=>new( 'Restore agent' )->build_from_blueprint( zcl_ai_agent_repository=>load_agent_blueprint( agent_id ) )->run(
+        EXPORTING
+          start_node_id = node_id
+          initial_state   = latest_status
+      ).
+    ENDIF.
   ENDMETHOD.
 
   METHOD set_created_audit.
@@ -69,54 +101,54 @@ CLASS lhc_HitlReq IMPLEMENTATION.
       UPDATE FIELDS ( CreatedAt CreatedBy )
       WITH VALUE #(
         FOR k IN keys (
-          %key      = k-%key
-          CreatedAt = current_timestamp
-          CreatedBy = sy-uname
+        %key      = k-%key
+        CreatedAt = current_timestamp
+        CreatedBy = sy-uname
         )
-      ).
+    ).
   ENDMETHOD.
 
 
 
   METHOD set_responded_meta.
 
-  DATA current_time TYPE timestampl.
-  DATA current_user TYPE syuname.
-  GET TIME STAMP FIELD current_time.
-  current_user = cl_abap_context_info=>get_user_technical_name( ).
+    DATA current_time TYPE timestampl.
+    DATA current_user TYPE syuname.
+    GET TIME STAMP FIELD current_time.
+    current_user = cl_abap_context_info=>get_user_technical_name( ).
 
-  " Read changed instances
-  READ ENTITIES OF zc_ai_hitl_req IN LOCAL MODE
-    ENTITY HitlReq
-    FIELDS ( Status RespondedAt RespondedBy )
-    WITH CORRESPONDING #( keys )
-    RESULT DATA(result).
-
-  DATA to_update TYPE TABLE FOR UPDATE zc_ai_hitl_req\\HitlReq.
-
-  LOOP AT result ASSIGNING FIELD-SYMBOL(<r>).
-    IF <r>-Status = 'RESPONDED'
-       AND ( <r>-RespondedAt IS INITIAL OR <r>-RespondedBy IS INITIAL ).
-
-      APPEND VALUE #( %key = <r>-%key
-                      RespondedAt = COND #( WHEN <r>-RespondedAt IS INITIAL THEN current_time ELSE <r>-RespondedAt )
-                      RespondedBy = COND #( WHEN <r>-RespondedBy IS INITIAL THEN current_user ELSE <r>-RespondedBy )
-
-                      %control-RespondedAt = if_abap_behv=>mk-on
-                      %control-RespondedBy = if_abap_behv=>mk-on ) TO to_update.
-    ENDIF.
-  ENDLOOP.
-
-  IF to_update IS NOT INITIAL.
-    MODIFY ENTITIES OF zc_ai_hitl_req IN LOCAL MODE
+    " Read changed instances
+    READ ENTITIES OF zc_ai_hitl_req IN LOCAL MODE
       ENTITY HitlReq
-      UPDATE FIELDS ( RespondedAt RespondedBy )
-      WITH to_update
-      FAILED DATA(failed_update)
-      REPORTED DATA(reported_update).
-  ENDIF.
+      FIELDS ( Status RespondedAt RespondedBy )
+      WITH CORRESPONDING #( keys )
+      RESULT DATA(result).
 
-ENDMETHOD.
+    DATA to_update TYPE TABLE FOR UPDATE zc_ai_hitl_req\\HitlReq.
+
+    LOOP AT result ASSIGNING FIELD-SYMBOL(<r>).
+      IF <r>-Status = 'RESPONDED'
+         AND ( <r>-RespondedAt IS INITIAL OR <r>-RespondedBy IS INITIAL ).
+
+        APPEND VALUE #( %key = <r>-%key
+                        RespondedAt = COND #( WHEN <r>-RespondedAt IS INITIAL THEN current_time ELSE <r>-RespondedAt )
+                        RespondedBy = COND #( WHEN <r>-RespondedBy IS INITIAL THEN current_user ELSE <r>-RespondedBy )
+
+                        %control-RespondedAt = if_abap_behv=>mk-on
+                        %control-RespondedBy = if_abap_behv=>mk-on ) TO to_update.
+      ENDIF.
+    ENDLOOP.
+
+    IF to_update IS NOT INITIAL.
+      MODIFY ENTITIES OF zc_ai_hitl_req IN LOCAL MODE
+        ENTITY HitlReq
+        UPDATE FIELDS ( RespondedAt RespondedBy )
+        WITH to_update
+        FAILED DATA(failed_update)
+        REPORTED DATA(reported_update).
+    ENDIF.
+
+  ENDMETHOD.
 
 ENDCLASS.
 
@@ -138,17 +170,17 @@ CLASS lsc_ZC_AI_HITL_REQ IMPLEMENTATION.
       RAISE ENTITY EVENT zc_ai_hitl_req~HumanInputRequested
         FROM VALUE #(
           FOR req IN create-hitlreq (
-            %key = req-%key
-            %param-ev_Topic              = req-Topic
-            %param-ev_CorrelationId      = req-CorrelationId
-            %param-ev_AgentId            = req-AgentId
-            %param-ev_NodeId             = req-NodeId
-            %param-ev_Reason             = req-Reason
-            %param-ev_Prompt             = req-Prompt
-            %param-ev_ResponseSchema     = req-ResponseSchema
-            %param-ev_PrimaryResultField = req-PrimaryResultField
+          %key                         = req-%key
+          %param-ev_Topic              = req-Topic
+          %param-ev_CorrelationId      = req-CorrelationId
+          %param-ev_AgentId            = req-AgentId
+          %param-ev_NodeId             = req-NodeId
+          %param-ev_Reason             = req-Reason
+          %param-ev_Prompt             = req-Prompt
+          %param-ev_ResponseSchema     = req-ResponseSchema
+          %param-ev_PrimaryResultField = req-PrimaryResultField
           )
-        ).
+      ).
     ENDIF.
 
   ENDMETHOD.
