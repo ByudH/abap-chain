@@ -345,7 +345,8 @@ CLASS zcl_ai_agent_builder IMPLEMENTATION.
         zcl_ai_agent_repository=>save_agent_blueprint(
           agent_blueprint = agent->get_agent_blueprint( ) ).
       CATCH cx_static_check.
-        " not able to serialize the agent definition
+        zcl_abapchain_logger=>get_instance( )->log_error(
+          message = 'Failed to save agent blueprint after build.' ).
     ENDTRY.
 
   ENDMETHOD.
