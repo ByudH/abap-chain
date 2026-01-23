@@ -53,8 +53,15 @@ CLASS lhc_HitlReq IMPLEMENTATION.
 
 *    TODO: restart agent here
 *    DATA(restart_agent_result) = builder => rebuild (agent_id) => resume_from_checkpoint ( optional checkpoint ).
-
+    " logger for logging error info
+    DATA(logger) = zcl_abapchain_logger=>get_instance( ).
     " assume the batch of requests share the same correlation id and agent id
+    IF <k> IS NOT ASSIGNED.
+      logger->log_error(
+        message = |Failed to read HITL request to resume agent.|
+      ).
+      RETURN.
+    ENDIF.
     DATA(correlation_id) = <k>-%param-CorrelationId.
     SELECT SINGLE agent_id
      FROM zai_hitl_req
@@ -62,7 +69,10 @@ CLASS lhc_HitlReq IMPLEMENTATION.
      INTO @DATA(agent_id).
 
     IF sy-subrc <> 0.
-
+      logger->log_error(
+        message = |Failed to find HITL request with correlation id { correlation_id } to resume agent.|
+      ).
+      RETURN.
     ENDIF.
 
     SELECT checkpoint_id
@@ -72,6 +82,13 @@ CLASS lhc_HitlReq IMPLEMENTATION.
      INTO @DATA(latest_checkpoint_id)
      UP TO 1 ROWS.
     ENDSELECT.
+
+    IF sy-subrc <> 0.
+      logger->log_error(
+        message = |No checkpoint found for agent { agent_id } to resume after HITL response.|
+      ).
+      RETURN.
+    ENDIF.
 
     " agent id in the checkpoint must be the same as the one we have
     DATA latest_status TYPE zif_ai_types=>ts_graph_state.
@@ -84,11 +101,18 @@ CLASS lhc_HitlReq IMPLEMENTATION.
     " start the agent only if the workflow status is paused
     IF latest_status-status = zif_ai_types=>gc_workflow_status_paused.
       latest_status-status = zif_ai_types=>gc_workflow_status_running.
-      zcl_ai_agent_builder=>new( 'Restore agent' )->build_from_blueprint( zcl_ai_agent_repository=>load_agent_blueprint( agent_id ) )->run(
-        EXPORTING
-          start_node_id = node_id
-          initial_state   = latest_status
-      ).
+
+      TRY.
+          zcl_ai_agent_builder=>new( 'Restore agent' )->build_from_blueprint( zcl_ai_agent_repository=>load_agent_blueprint( agent_id ) )->run(
+            EXPORTING
+              start_node_id = node_id
+              initial_state   = latest_status
+          ).
+        CATCH cx_static_check.
+          logger->log_error(
+            message = |Failed to restroe and resume agent { agent_id } from checkpoint { latest_checkpoint_id } after HITL response.|
+          ).
+      ENDTRY.
     ENDIF.
   ENDMETHOD.
 
