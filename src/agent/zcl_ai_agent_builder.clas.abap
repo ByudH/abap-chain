@@ -339,13 +339,14 @@ CLASS zcl_ai_agent_builder IMPLEMENTATION.
       start_node_id   = start_node_id
       tools           = tools ).
 
-*    " 7) save the agent definition into the agent def table
-*    TRY.
-*        zcl_ai_agent_repository=>save_agent_blueprint(
-*          agent_blueprint = agent->get_agent_blueprint( agent ) ).
-*      CATCH cx_sy_open_sql_db.
-*        " not able to serialize the agent definition
-*    ENDTRY.
+    " 7) save the agent definition into the agent def table
+    " In case the agent need to be restroed after pause, the definition must be stored
+    TRY.
+        zcl_ai_agent_repository=>save_agent_blueprint(
+          agent_blueprint = agent->get_agent_blueprint( ) ).
+      CATCH cx_static_check.
+        " not able to serialize the agent definition
+    ENDTRY.
 
   ENDMETHOD.
 
