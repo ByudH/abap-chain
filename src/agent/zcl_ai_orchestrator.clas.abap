@@ -8,6 +8,8 @@ CLASS zcl_ai_orchestrator DEFINITION
     CLASS-METHODS run
       IMPORTING
         agent_id           TYPE zif_ai_types=>ty_agent_id
+        agent_name         TYPE string " expose agent name for storing agent blueprint
+        tools              TYPE zif_ai_types=>th_tool_registry_map " expose tool registry for storing agent blueprint
         node_edge_graph    TYPE zif_ai_types=>th_graph_map
         start_node_id      TYPE zif_ai_types=>ty_node_id
         initial_state      TYPE zif_ai_types=>ts_graph_state OPTIONAL
@@ -146,34 +148,39 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
 *      graph_entry-source_node->execute(
 *        CHANGING
 *            state = state ).
+      IF state-skip_current_execute = abap_true.
+        state-skip_current_execute = abap_false.
+      ELSE.
+        TRY.
 
-      TRY.
-          graph_entry-source_node->execute(
-            CHANGING
-              state = state ).
+            " execute node
 
-
-        CATCH cx_root INTO DATA(ex).
-          TRY.
-              logger->log_error(
-                message = |Node execution failed. node_id={ current_node_id }. { ex->get_text( ) }| ).
-            CATCH cx_root.
-          ENDTRY.
-          " Decide policy: EXIT (soft-stop) or RAISE EXCEPTION ex (fail hard)
-          EXIT.
-      ENDTRY.
+            graph_entry-source_node->execute(
+              CHANGING
+                state = state ).
 
 
-      TRY.
-          logger->log_node(
-            node_id   = current_node_id
-            node_name = graph_entry-source_node->get_node_name( )
-            message   = |Node executed. branch_label="{ state-branch_label }" last_tool="{ state-last_tool_name }".|
-            severity  = if_bali_constants=>c_severity_information ).
-        CATCH cx_root.
-      ENDTRY.
+          CATCH cx_root INTO DATA(ex).
+            TRY.
+                logger->log_error(
+                  message = |Node execution failed. node_id={ current_node_id }. { ex->get_text( ) }| ).
+              CATCH cx_root.
+            ENDTRY.
+            " Decide policy: EXIT (soft-stop) or RAISE EXCEPTION ex (fail hard)
+            EXIT.
+        ENDTRY.
 
 
+        TRY.
+            logger->log_node(
+              node_id   = current_node_id
+              node_name = graph_entry-source_node->get_node_name( )
+              message   = |Node executed. branch_label="{ state-branch_label }" last_tool="{ state-last_tool_name }".|
+              severity  = if_bali_constants=>c_severity_information ).
+          CATCH cx_root.
+        ENDTRY.
+
+      ENDIF.
 
       IF state-status = zif_ai_types=>gc_workflow_status_waiting
          AND state-hitl_correlation_id IS NOT INITIAL.
@@ -189,11 +196,12 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
         " --- US2.3: PERSISTENCE POINT ---
         " Save state immediately after successful node execution to capture
         " the latest changes (e.g., LLM responses or tool outputs).
-        zcl_ai_orchestrator=>save_checkpoint(
+        DATA(latest_checkpoint) = zcl_ai_orchestrator=>save_checkpoint(
           agent_id = agent_id
           node_id  = current_node_id
           state    = state
         ).
+        state-last_checkpoint_id   = latest_checkpoint.
 
         hitl->handle_wait(
           EXPORTING
@@ -201,7 +209,23 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
           CHANGING
             state    = state ).
 
+        " Use gc_working_status_paused to indicate if the agent need to be restored in the
+        " respond function of zbp_c_ai_hitl_req's local class
         IF state-status = zif_ai_types=>gc_workflow_status_paused.
+          " before exiting, save the structure of the agent
+          TRY.
+              zcl_ai_agent_repository=>save_agent_blueprint( zcl_ai_agent=>get_agent_blueprint_static(
+                EXPORTING
+                  agent_id = agent_id
+                  agent_name = agent_name
+                  node_edge_graph = node_edge_graph
+                  start_node_id = start_node_id
+                  tools = tools
+              ) ).
+            CATCH cx_root.
+              logger->log_error(
+                message = |Agent blueprint save failed. agent_id={ agent_id }| ).
+          ENDTRY.
           EXIT.
         ENDIF.
 

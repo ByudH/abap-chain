@@ -42,10 +42,11 @@ CLASS lcl_test_orchestrator IMPLEMENTATION.
 
     DATA(lt_graph) = VALUE zif_ai_types=>th_graph_map( ).
 
+    data agent_name type string value 'Test Agent'.
+
     " B. Instantiate the mock node with valid IDs
     DATA(lo_node) = NEW lcl_mock_node(
-      node_id  = lv_test_node_id
-      agent_id = lv_test_agent_id
+
       node_name = 'Test'
     ).
 
@@ -65,7 +66,9 @@ CLASS lcl_test_orchestrator IMPLEMENTATION.
 *    ).
     DATA(ls_final_state) = zcl_ai_orchestrator=>run(
       agent_id        = lv_test_agent_id
+      agent_name      = agent_name
       node_edge_graph = lt_graph
+      tools = value #( )
       start_node_id   = lv_test_node_id
       initial_state   = VALUE zif_ai_types=>ts_graph_state(
         messages = VALUE zif_ai_types=>tt_messages(
