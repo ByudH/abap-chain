@@ -103,7 +103,7 @@ CLASS zcl_ai_agent IMPLEMENTATION.
       node_edge_graph = me->node_edge_graph
       start_node_id   = me->start_node_id
       initial_state   = initial_state
-      tools = tools ).
+      tools           = tools ).
 
     TRY.
         logger->save_and_get_handle( ).
@@ -149,27 +149,58 @@ CLASS zcl_ai_agent IMPLEMENTATION.
     ENDIF.
 
     " Load HITL response
-    SELECT SINGLE status, response_payload, primary_result_field
-      FROM zai_hitl_req
-      WHERE correlation_id = @state-hitl_correlation_id
-      INTO (@DATA(db_status), @DATA(db_payload), @DATA(db_primary)).
+    " first read the local cache table
+    READ ENTITIES OF zc_ai_hitl_req IN LOCAL MODE
+    ENTITY HitlReq
+      FIELDS ( Status ResponsePayload PrimaryResultField )
+      WITH VALUE #( ( CorrelationId = state-hitl_correlation_id ) )
+    RESULT DATA(hitl_records)
+    FAILED DATA(read_failed).
 
-    IF sy-subrc <> 0 OR db_status <> 'RESPONDED'.
+    IF hitl_records IS INITIAL.
       state-status = zif_ai_types=>gc_workflow_status_waiting.
       final_state = state.
       RETURN.
     ENDIF.
 
-    state-hitl_response_payload = db_payload.
-    state-status                = zif_ai_types=>gc_workflow_status_running.
+    DATA(hitl_record) = hitl_records[ 1 ].
 
-    IF db_primary IS INITIAL.
-      db_primary = state-hitl_primary_field.
+    IF hitl_record-Status <> 'RESPONDED'.
+      state-status = zif_ai_types=>gc_workflow_status_waiting.
+      final_state = state.
+      RETURN.
     ENDIF.
 
+    state-hitl_response_payload = hitl_record-ResponsePayload.
+    state-status                = zif_ai_types=>gc_workflow_status_running.
+
+    IF hitl_record-PrimaryResultField IS INITIAL.
+      hitl_record-PrimaryResultField = state-hitl_primary_field.
+    ENDIF.
     state-branch_label = zcl_ai_orchestrator=>extract_branch_label(
-      payload = db_payload
-      primary = CONV string( db_primary ) ).
+      payload = hitl_record-ResponsePayload
+      primary = CONV string( hitl_record-PrimaryResultField ) ).
+*    SELECT SINGLE status, response_payload, primary_result_field
+*      FROM zai_hitl_req
+*      WHERE correlation_id = @state-hitl_correlation_id
+*      INTO (@DATA(db_status), @DATA(db_payload), @DATA(db_primary)).
+*
+*    IF sy-subrc <> 0 OR db_status <> 'RESPONDED'.
+*      state-status = zif_ai_types=>gc_workflow_status_waiting.
+*      final_state = state.
+*      RETURN.
+*    ENDIF.
+*
+*    state-hitl_response_payload = db_payload.
+*    state-status                = zif_ai_types=>gc_workflow_status_running.
+*
+*    IF db_primary IS INITIAL.
+*      db_primary = state-hitl_primary_field.
+*    ENDIF.
+
+*    state-branch_label = zcl_ai_orchestrator=>extract_branch_label(
+*      payload = db_payload
+*      primary = CONV string( db_primary ) ).
 
     " IMPORTANT: do not re-execute the HITL node; continue routing from it
     state-skip_current_execute = abap_true.
@@ -180,7 +211,7 @@ CLASS zcl_ai_agent IMPLEMENTATION.
       node_edge_graph = me->node_edge_graph
       start_node_id   = node_id             " resume at the checkpoint node
       initial_state   = state
-      tools = tools
+      tools           = tools
       hitl_wait       = NEW zcl_ai_hitl_wait_pause_check( ) ). " or a no-op
 
   ENDMETHOD.
