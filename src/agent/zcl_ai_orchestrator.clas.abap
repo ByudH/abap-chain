@@ -52,14 +52,17 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
 
     DATA(logger) = zcl_abapchain_logger=>get_instance( ).
 
-    DATA(hitl) = hitl_wait.
-    IF hitl IS NOT BOUND.
-      hitl = NEW zcl_ai_hitl_wait_blocking( ).
-    ENDIF.
-
 
     DATA state TYPE zif_ai_types=>ts_graph_state.
     state = initial_state.
+
+    DATA(hitl) = hitl_wait.
+    IF hitl IS NOT BOUND.
+      hitl = NEW zcl_ai_hitl_wait_blocking( ).
+      state-hitl_strategy = zif_ai_types=>gc_hitl_strategy_wait.
+    ENDIF.
+
+
 
     DATA current_node_id TYPE zif_ai_types=>ty_node_id.
     current_node_id = start_node_id.
@@ -212,6 +215,12 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
         " Use gc_working_status_paused to indicate if the agent need to be restored in the
         " respond function of zbp_c_ai_hitl_req's local class
         IF state-status = zif_ai_types=>gc_workflow_status_paused.
+          " before exiting, save the latest state of checkpoint
+          zcl_ai_orchestrator=>save_checkpoint(
+          agent_id = agent_id
+          node_id  = current_node_id
+          state    = state
+        ).
           " before exiting, save the structure of the agent
           TRY.
               zcl_ai_agent_repository=>save_agent_blueprint( zcl_ai_agent=>get_agent_blueprint_static(
