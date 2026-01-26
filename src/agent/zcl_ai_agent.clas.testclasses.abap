@@ -16,7 +16,9 @@ CLASS ltzcl_ai_agent_test DEFINITION FINAL FOR TESTING
       tool_table TYPE REF TO zif_ai_tool,
       tool_risk  TYPE REF TO zif_ai_tool,
       llm_node   TYPE REF TO zcl_ai_node_llm,
-      tool_node  TYPE REF TO zcl_ai_node_tool.
+      tool_node  TYPE REF TO zcl_ai_node_tool,
+      llm_planner_node TYPE REF TO zcl_ai_node_llm_planner,
+      hitl_node  TYPE REF TO zcl_ai_node_human_input.
     DATA builder TYPE REF TO zcl_ai_agent_builder.
 ENDCLASS.
 
@@ -36,6 +38,23 @@ CLASS ltzcl_ai_agent_test IMPLEMENTATION.
     " --- Tool Node ---
     tool_node = NEW zcl_ai_node_tool(
       name = 'Tool Executor'
+    ).
+
+    " LLM planner node
+    llm_planner_node = NEW zcl_ai_node_llm_planner(
+      name = 'LLM-Planner-Node'
+    ).
+
+    " hitl node
+    hitl_node = NEW zcl_ai_node_human_input(
+      name = 'HITL-Node'
+      topic = 'Testing Human-in-the-Loop'
+      reason = 'Testing Human-in-the-Loop'
+      prompt = 'Please provide your input to continue the process.'
+    ).
+
+    data(end_node) = new zcl_ai_node_end(
+      name = 'End-Node'
     ).
 
     builder = zcl_ai_agent_builder=>new( name = 'ABAPCHAIN_DEMO' ).
@@ -76,7 +95,29 @@ CLASS ltzcl_ai_agent_test IMPLEMENTATION.
                 tool_name  = 'risk_check'
             )->set_start_node(
                 llm_node->node_id
-            ).
+            )->add_node(
+              llm_planner_node
+            )->add_node(
+              hitl_node
+            )->connect_on_control(
+              from_node_id = llm_planner_node->node_id
+              to_node_id    = hitl_node->node_id
+              control_value = 'HITL'
+              priority      = 1
+            )->connect_on_control(
+              from_node_id = llm_planner_node->node_id
+              to_node_id    = tool_node->node_id
+              control_value = 'TOOL'
+              priority      = 1
+            )->connect_always(
+              from_node_id = tool_node->node_id
+              to_node_id    = llm_planner_node->node_id
+            )->connect_always(
+              from_node_id = hitl_node->node_id
+              to_node_id    = end_node->node_id
+              priority      = 1
+            )->add_node( end_node
+            )->set_start_node( llm_planner_node->node_id ).
 
     TRY.
         agent = builder->build( ).
@@ -177,14 +218,14 @@ CLASS ltzcl_ai_agent_test IMPLEMENTATION.
 
     cl_abap_unit_assert=>assert_equals(
       act = blueprint-start_node_id
-      exp = llm_node->node_id
+      exp = llm_planner_node->node_id
       msg = 'Start node ID should match' ).
 
     " B. Check Nodes (Should be 2)
     cl_abap_unit_assert=>assert_equals(
       act = lines( blueprint-graph_blueprint )
-      exp = 2
-      msg = 'Should have exactly 2 nodes serialized' ).
+      exp = 5
+      msg = 'Should have exactly 5 nodes serialized' ).
 
     " Verify Node Types & Config
     READ TABLE blueprint-graph_blueprint INTO DATA(bp_llm) WITH KEY node_id = llm_node->node_id.
@@ -215,9 +256,11 @@ CLASS ltzcl_ai_agent_test IMPLEMENTATION.
     " C. Check Edges
     " LLM->Tool and Tool->LLM = 2 edges
     cl_abap_unit_assert=>assert_equals(
-      act = lines( blueprint-graph_blueprint[ node_id = llm_node->node_id ]-next_nodes ) + lines( blueprint-graph_blueprint[ node_id = tool_node->node_id ]-next_nodes )
-      exp = 2
-      msg = 'Should have 2 edges defined' ).
+      act = REDUCE i( INIT sum = 0
+                  FOR node IN blueprint-graph_blueprint
+                  NEXT sum = sum + lines( node-next_nodes ) )
+      exp = 6
+      msg = 'Should have 6 edges defined' ).
 
     " D. Check Tools Registry (Should be 2)
     cl_abap_unit_assert=>assert_equals(

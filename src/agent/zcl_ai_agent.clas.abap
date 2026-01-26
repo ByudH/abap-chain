@@ -28,6 +28,16 @@ CLASS zcl_ai_agent DEFINITION
       RETURNING
         VALUE(agent)    TYPE REF TO zcl_ai_agent.
 
+    CLASS-METHODS get_agent_blueprint_static
+      IMPORTING
+        agent_name             TYPE string
+        agent_id               TYPE zif_ai_types=>ty_agent_id
+        node_edge_graph        TYPE zif_ai_types=>th_graph_map
+        start_node_id          TYPE zif_ai_types=>ty_node_id
+        tools                  TYPE zif_ai_types=>th_tool_registry_map
+      RETURNING
+        VALUE(agent_blueprint) TYPE zif_ai_types=>ts_agent_blueprint.
+
     METHODS run
       IMPORTING
         initial_state      TYPE zif_ai_types=>ts_graph_state OPTIONAL
@@ -56,6 +66,16 @@ CLASS zcl_ai_agent DEFINITION
         start_node_id   TYPE zif_ai_types=>ty_node_id
         tools           TYPE zif_ai_types=>th_tool_registry_map.
 
+    CLASS-METHODS get_agent_blueprint_helper
+      IMPORTING
+        agent_name             TYPE string
+        agent_id               TYPE zif_ai_types=>ty_agent_id
+        node_edge_graph        TYPE zif_ai_types=>th_graph_map
+        start_node_id          TYPE zif_ai_types=>ty_node_id
+        tools                  TYPE zif_ai_types=>th_tool_registry_map
+      RETURNING
+        VALUE(agent_blueprint) TYPE zif_ai_types=>ts_agent_blueprint.
+
 ENDCLASS.
 
 CLASS zcl_ai_agent IMPLEMENTATION.
@@ -78,10 +98,12 @@ CLASS zcl_ai_agent IMPLEMENTATION.
     ENDIF.
 
     final_state = zcl_ai_orchestrator=>run(
+      agent_name      = me->agent_name
       agent_id        = me->agent_id
       node_edge_graph = me->node_edge_graph
       start_node_id   = me->start_node_id
-      initial_state   = initial_state ).
+      initial_state   = initial_state
+      tools = tools ).
 
     TRY.
         logger->save_and_get_handle( ).
@@ -154,9 +176,11 @@ CLASS zcl_ai_agent IMPLEMENTATION.
 
     final_state = zcl_ai_orchestrator=>run(
       agent_id        = me->agent_id        " must match
+      agent_name      = me->agent_name
       node_edge_graph = me->node_edge_graph
       start_node_id   = node_id             " resume at the checkpoint node
       initial_state   = state
+      tools = tools
       hitl_wait       = NEW zcl_ai_hitl_wait_pause_check( ) ). " or a no-op
 
   ENDMETHOD.
@@ -172,11 +196,13 @@ CLASS zcl_ai_agent IMPLEMENTATION.
         tools           = tools.
   ENDMETHOD.
 
-  METHOD get_agent_blueprint.
-    agent_blueprint-agent_id = me->agent_id.
-    agent_blueprint-start_node_id = me->start_node_id.
-    agent_blueprint-agent_name = me->agent_name.
+  METHOD get_agent_blueprint_helper.
+    agent_blueprint-agent_id = agent_id.
+    agent_blueprint-start_node_id = start_node_id.
+    agent_blueprint-agent_name = agent_name.
+
     LOOP AT node_edge_graph INTO DATA(graph_entry).
+
       DATA node_blueprint TYPE zif_ai_types=>ts_node_blueprint.
       DATA edge_blueprints TYPE zif_ai_types=>tt_edge_blueprints.
 
@@ -202,7 +228,6 @@ CLASS zcl_ai_agent IMPLEMENTATION.
       node_blueprint-next_nodes = edge_blueprints.
       APPEND node_blueprint TO agent_blueprint-graph_blueprint.
 
-
     ENDLOOP.
 
     LOOP AT tools INTO DATA(tool_entry).
@@ -214,6 +239,24 @@ CLASS zcl_ai_agent IMPLEMENTATION.
       APPEND tool_blueprint TO agent_blueprint-tool_registry_blueprint.
     ENDLOOP.
 
+  ENDMETHOD.
+
+  METHOD get_agent_blueprint.
+    agent_blueprint = get_agent_blueprint_helper(
+      agent_name      = me->agent_name
+      agent_id        = me->agent_id
+      node_edge_graph = me->node_edge_graph
+      start_node_id   = me->start_node_id
+      tools           = me->tools ).
+  ENDMETHOD.
+
+  METHOD get_agent_blueprint_static.
+    agent_blueprint = get_agent_blueprint_helper(
+      agent_name      = agent_name
+      agent_id        = agent_id
+      node_edge_graph = node_edge_graph
+      start_node_id   = start_node_id
+      tools           = tools ).
   ENDMETHOD.
 
 ENDCLASS.
