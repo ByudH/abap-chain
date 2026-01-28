@@ -32,14 +32,21 @@ ENDCLASS.
 
 CLASS zcl_ai_node_base IMPLEMENTATION.
   METHOD constructor.
+    " the builder will set the agent_id later since when generating the node we might not know the agent yet
     me->node_name = node_name.
     me->node_id = zcl_ai_utils=>generate_uuid( ).
   ENDMETHOD.
+
   METHOD zif_ai_node~execute.
+
+  " TODO: Logging
+
+
     do_execute(
       CHANGING
         state = state
     ).
+
   ENDMETHOD.
 
   METHOD do_execute.

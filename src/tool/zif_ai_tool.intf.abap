@@ -2,8 +2,8 @@ INTERFACE zif_ai_tool
   PUBLIC .
   METHODS execute
     IMPORTING
-        input         TYPE string  "input data to the tool
-        calling_node  TYPE REF TO zif_ai_node OPTIONAL
+              input         TYPE string  "input data to the tool
+              calling_node  TYPE REF TO zif_ai_node OPTIONAL
     EXPORTING output        TYPE string "output of the tool
     RETURNING VALUE(status) TYPE i. "0 success, non-zero error
 
@@ -21,5 +21,14 @@ INTERFACE zif_ai_tool
       VALUE(tool_type) TYPE string.
 
   METHODS get_argument_metadata
-    RETURNING VALUE(arguments) TYPE zcl_tool_schema=>tt_tool_arguments.
+    RETURNING VALUE(arguments) TYPE zcl_schema_validator=>tt_field_definitions.
+
+  METHODS get_configuration
+    RETURNING
+      VALUE(configuration) TYPE string.
+
+  METHODS set_configuration
+    IMPORTING
+      configuration TYPE string.
+
 ENDINTERFACE.

@@ -1,13 +1,13 @@
 CLASS zcl_ai_agent_builder DEFINITION
   PUBLIC
-  CREATE PUBLIC.
+  CREATE PRIVATE. " force use the static new method.
 
   PUBLIC SECTION.
 
     " Entry point – start defining a new agent
     CLASS-METHODS new
       IMPORTING
-        name           TYPE string
+        name           TYPE string default 'AI_Agent_Builder'
       RETURNING
         VALUE(builder) TYPE REF TO zcl_ai_agent_builder.
 
@@ -341,13 +341,13 @@ CLASS zcl_ai_agent_builder IMPLEMENTATION.
 
     " 7) save the agent definition into the agent def table
     " In case the agent need to be restroed after pause, the definition must be stored
-    TRY.
-        zcl_ai_agent_repository=>save_agent_blueprint(
-          agent_blueprint = agent->get_agent_blueprint( ) ).
-      CATCH cx_static_check.
-        zcl_abapchain_logger=>get_instance( )->log_error(
-          message = 'Failed to save agent blueprint after build.' ).
-    ENDTRY.
+*    TRY.
+*        zcl_ai_agent_repository=>save_agent_blueprint(
+*          agent_blueprint = agent->get_agent_blueprint( ) ).
+*      CATCH cx_static_check.
+*        zcl_abapchain_logger=>get_instance( )->log_error(
+*          message = 'Failed to save agent blueprint after build.' ).
+*    ENDTRY.
 
   ENDMETHOD.
 
@@ -443,6 +443,7 @@ CLASS zcl_ai_agent_builder IMPLEMENTATION.
                  EXPORTING
                    name   = tool_blueprint-tool_name
                    description = tool_blueprint-tool_description.
+                   tool->set_configuration( tool_blueprint-configuration ).
       ENDIF.
       INSERT VALUE #(
       tool_name        = tool_blueprint-tool_name

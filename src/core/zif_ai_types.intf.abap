@@ -17,7 +17,7 @@ INTERFACE zif_ai_types
     gc_role_system    TYPE string VALUE 'system',
     gc_role_user      TYPE string VALUE 'user',
     gc_role_assistant TYPE string VALUE 'assistant',
-    gc_role_error   TYPE string VALUE 'error', " for the error messages in state
+    gc_role_error     TYPE string VALUE 'error', " for the error messages in state
     gc_role_tool      TYPE string VALUE 'tool'.
 
   TYPES: BEGIN OF ts_message,
@@ -34,8 +34,8 @@ INTERFACE zif_ai_types
            last_tool_name        TYPE string,  "debug info"
            branch_label          TYPE string,  "routing: ON_LABEL"
            result_json           TYPE string,  "final output"
+           tool_arguments        TYPE string,
            status                TYPE string,  "workflow execution status (e.g., RETRYING, ERROR)"
-           tool_arguments      TYPE string, "Indri"
 
            " HITL
            hitl_correlation_id   TYPE sysuuid_x16,
@@ -46,8 +46,9 @@ INTERFACE zif_ai_types
            hitl_primary_field    TYPE string,  " e.g. 'approved'
            hitl_response_payload TYPE string,  " response JSON string
            skip_current_execute  TYPE ABAP_Boolean, "skip current node after hitl resume"
-           last_checkpoint_id     TYPE zai_checkpoint-checkpoint_id,
-           paused_checkpoint_id   TYPE zai_checkpoint-checkpoint_id,
+           last_checkpoint_id    TYPE zai_checkpoint-checkpoint_id,
+           paused_checkpoint_id  TYPE zai_checkpoint-checkpoint_id,
+           hitl_strategy         TYPE string, " WAIT for blocking and PAUSE for non-blocking
 
          END OF ts_graph_state.
   " Shared Structure for tool registry
@@ -112,7 +113,7 @@ INTERFACE zif_ai_types
            tool_name        TYPE string,
            tool_class       TYPE string,  " The ABAP Class name (e.g. 'ZCL_AI_TOOL_SEARCH')
            tool_description TYPE string,
-*           configuration    TYPE string,  " Optional: JSON string for tool-specific settings
+           configuration    TYPE string," in case name and description differs from the orchestrator
          END OF ts_tool_blueprint.
 
   TYPES: tt_tool_blueprints TYPE STANDARD TABLE OF ts_tool_blueprint WITH EMPTY KEY.
@@ -153,6 +154,9 @@ INTERFACE zif_ai_types
   " HITL
   CONSTANTS gc_workflow_status_waiting  TYPE string VALUE 'WAITING_FOR_HUMAN'.
   CONSTANTS gc_workflow_status_paused  TYPE string VALUE 'PAUSED_FOR_HITL'.
+
+  CONSTANTS gc_hitl_strategy_wait TYPE string VALUE 'WAIT'.
+  CONSTANTS gc_hitl_strategy_pause TYPE string VALUE 'PAUSE'.
   " =========================================================
 
 
