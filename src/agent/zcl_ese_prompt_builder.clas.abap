@@ -6,17 +6,17 @@ CLASS zcl_ese_prompt_builder DEFINITION
   PUBLIC SECTION.
     METHODS build_system_prompt
       IMPORTING available_tools TYPE  zif_ai_types=>th_tool_registry_map
-      RETURNING VALUE(prompt) TYPE string.
+      RETURNING VALUE(prompt)   TYPE string.
 
   PRIVATE SECTION.
     METHODS format_tool_list
-      IMPORTING tools TYPE zif_ai_types=>th_tool_registry_map
+      IMPORTING tools            TYPE zif_ai_types=>th_tool_registry_map
       RETURNING VALUE(formatted) TYPE string.
 
     METHODS format_single_tool
       IMPORTING
-        tool_entry TYPE zif_ai_types=>ts_tool_registry
-        index      TYPE i
+        tool_entry       TYPE zif_ai_types=>ts_tool_registry
+        index            TYPE i
       RETURNING
         VALUE(formatted) TYPE string.
 
@@ -45,9 +45,10 @@ CLASS zcl_ese_prompt_builder IMPLEMENTATION.
       |3. Always include detailed "reasoning" explaining your thought process\n| &&
       |4. Only use tools listed in the Available Tools section above\n| &&
       |5. Provide all required arguments when calling a tool\n| &&
-      |6. Do NOT use markdown code blocks or ``` json|.
+      |6. Do NOT use markdown code blocks or ``` json\n| &&
+      |7. If the tool output contains the requested information (e.g., the weather), do NOT call the tool again. Instead, set 'tool' to null and put the answer in 'final_answer'.|.
 
-ENDMETHOD.
+  ENDMETHOD.
 
   METHOD format_tool_list.
     " Handle case when no tools are available
