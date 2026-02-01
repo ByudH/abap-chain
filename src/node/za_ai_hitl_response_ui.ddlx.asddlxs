@@ -1,0 +1,12 @@
+@Metadata.layer: #CORE
+annotate entity ZA_AI_HITL_RESPONSE with
+{
+  @UI.hidden: true
+  @Consumption.hidden: true
+  CorrelationId;
+
+  @UI.multiLineText: true
+  @EndUserText.label: 'Response Payload'
+  @UI.identification: [{ position: 10 }]
+  ResponsePayload;
+}

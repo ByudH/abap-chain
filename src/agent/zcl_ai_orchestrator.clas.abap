@@ -58,11 +58,16 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
 
     DATA(hitl) = hitl_wait.
     IF hitl IS NOT BOUND.
+*      hitl = NEW zcl_ai_hitl_wait_pause_check( ).
       hitl = NEW zcl_ai_hitl_wait_blocking( ).
       state-hitl_strategy = zif_ai_types=>gc_hitl_strategy_wait.
     ENDIF.
 
+    " add system prompt into the state
+    DATA(prompt_builder) = NEW zcl_ese_prompt_builder( ).
+    DATA(system_prompt) = prompt_builder->build_system_prompt( tools ).
 
+    APPEND VALUE #( role = zif_ai_types=>gc_role_system content = system_prompt ) TO state-messages.
 
     DATA current_node_id TYPE zif_ai_types=>ty_node_id.
     current_node_id = start_node_id.
@@ -217,10 +222,10 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
         IF state-status = zif_ai_types=>gc_workflow_status_paused.
           " before exiting, save the latest state of checkpoint
           zcl_ai_orchestrator=>save_checkpoint(
-          agent_id = agent_id
-          node_id  = current_node_id
-          state    = state
-        ).
+            agent_id = agent_id
+            node_id  = current_node_id
+            state    = state
+          ).
           " before exiting, save the structure of the agent
           TRY.
               zcl_ai_agent_repository=>save_agent_blueprint( zcl_ai_agent=>get_agent_blueprint_static(
@@ -266,6 +271,10 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
               severity     = if_bali_constants=>c_severity_status ).
           CATCH cx_root.
         ENDTRY.
+
+        state-status = zif_ai_types=>gc_workflow_status_finished.
+        state-branch_label = 'END'.
+
         EXIT.
       ENDIF.
 
@@ -398,6 +407,8 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
     " 3) Restore execution pointers
     node_id  = ls_checkpoint-node_id.
     agent_id = ls_checkpoint-agent_id.
+    " update checkpoint_id to latest
+    state-last_checkpoint_id = ls_checkpoint-checkpoint_id.
 
   ENDMETHOD.
 
@@ -419,6 +430,11 @@ CLASS zcl_ai_orchestrator IMPLEMENTATION.
     ELSE.
       label = 'HITL_DONE'.
     ENDIF.
+
+
   ENDMETHOD.
+
+
+
 
 ENDCLASS.

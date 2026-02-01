@@ -116,7 +116,6 @@ CLASS zcl_ai_tool_table_info IMPLEMENTATION.
 
       ELSE.
 
-        " !!!!! Functionality of getting types not work for cds views. !!!!
         " -----------------------------------------------------------------
         " Strategy B: Check if it is a CDS View Entity (I_View)
         " -----------------------------------------------------------------

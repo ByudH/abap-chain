@@ -6,18 +6,18 @@ CLASS zcl_llm_response_validator DEFINITION
   PUBLIC SECTION.
     " Response structure (moved from zcl_ese_llm_response_schema)
     TYPES: BEGIN OF ty_llm_response,
-             reasoning     TYPE string,
-             tool          TYPE string,
-             arguments     TYPE REF TO data,
-             final_answer  TYPE string,
+             reasoning    TYPE string,
+             tool         TYPE string,
+             arguments    TYPE REF TO data,
+             final_answer TYPE string,
            END OF ty_llm_response.
 
     " Main validation method
     CLASS-METHODS parse_and_validate
       IMPORTING
-        json_response       TYPE string
+        json_response   TYPE string
       RETURNING
-        VALUE(response)     TYPE ty_llm_response
+        VALUE(response) TYPE ty_llm_response
       RAISING
         zcx_schema_validation.
 
@@ -35,7 +35,7 @@ CLASS zcl_llm_response_validator DEFINITION
     " Business rule validation (ReAct pattern)
     CLASS-METHODS validate_react_pattern
       IMPORTING
-        response TYPE ty_llm_response
+        response            TYPE ty_llm_response
         has_arguments_field TYPE abap_bool DEFAULT abap_true
       RAISING
         zcx_schema_validation.
@@ -55,7 +55,7 @@ CLASS zcl_llm_response_validator IMPLEMENTATION.
     "Look for argument field in JSON, checking with quotes to avoid false positives in string values
 
     IF lv_clean_json CS '"arguments"'.
-        lv_has_arguments_field = abap_true.
+      lv_has_arguments_field = abap_true.
     ENDIF.
 
     "Deserialize
@@ -63,7 +63,8 @@ CLASS zcl_llm_response_validator IMPLEMENTATION.
         /ui2/cl_json=>deserialize(
           EXPORTING
             json = lv_clean_json
-            pretty_name = /ui2/cl_json=>pretty_mode-camel_case
+*            pretty_name = /ui2/cl_json=>pretty_mode-camel_case
+            pretty_name = /ui2/cl_json=>pretty_mode-none
           CHANGING
             data = response ).
 
@@ -73,7 +74,7 @@ CLASS zcl_llm_response_validator IMPLEMENTATION.
         RAISE EXCEPTION TYPE zcx_schema_validation
           EXPORTING
             error_message = |JSON parsing failed: { lx_parse_error->get_text( ) }|
-            previous = lx_parse_error.
+            previous      = lx_parse_error.
     ENDTRY.
 
     "Validate ReAct pattern business rules
@@ -88,9 +89,9 @@ CLASS zcl_llm_response_validator IMPLEMENTATION.
     IF response-reasoning IS INITIAL.
       RAISE EXCEPTION TYPE zcx_schema_validation
         EXPORTING
-            error_message = 'Missing required field: reasoning'
-            field_name = 'reasoning'
-            validation_type = 'REQUIRED_FIELD'.
+          error_message   = 'Missing required field: reasoning'
+          field_name      = 'reasoning'
+          validation_type = 'REQUIRED_FIELD'.
 
     ENDIF.
 
@@ -99,8 +100,8 @@ CLASS zcl_llm_response_validator IMPLEMENTATION.
        response-final_answer IS NOT INITIAL.
       RAISE EXCEPTION TYPE zcx_schema_validation
         EXPORTING
-            error_message = 'Invalid response: Both tool and final_answer are set. Only one should have a value.'
-            validation_type = 'REACT_PATTERN'.
+          error_message   = 'Invalid response: Both tool and final_answer are set. Only one should have a value.'
+          validation_type = 'REACT_PATTERN'.
 
     ENDIF.
 
@@ -109,8 +110,8 @@ CLASS zcl_llm_response_validator IMPLEMENTATION.
        response-final_answer IS INITIAL.
       RAISE EXCEPTION TYPE zcx_schema_validation
         EXPORTING
-            error_message = 'Invalid response: Either tool or final_answer must be set.'
-            validation_type = 'REACT_PATTERN'.
+          error_message   = 'Invalid response: Either tool or final_answer must be set.'
+          validation_type = 'REACT_PATTERN'.
     ENDIF.
 
     " Rule 4: If tool is set, arguments should be bound
@@ -118,9 +119,9 @@ CLASS zcl_llm_response_validator IMPLEMENTATION.
        has_arguments_field = abap_false.
       RAISE EXCEPTION TYPE zcx_schema_validation
         EXPORTING
-            error_message = 'Invalid response: Tool is specified but arguments are missing.'
-            field_name = 'arguments'
-            validation_type = 'REQUIRED_FIELD'.
+          error_message   = 'Invalid response: Tool is specified but arguments are missing.'
+          field_name      = 'arguments'
+          validation_type = 'REQUIRED_FIELD'.
     ENDIF.
 
     " Rule 5: If arguments are set, tool should be bound/ its completely unconditional so needs to be deleted

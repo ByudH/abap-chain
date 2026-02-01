@@ -51,6 +51,7 @@ CLASS lhc_HitlReq IMPLEMENTATION.
 
     ENDLOOP.
 
+
 *    TODO: restart agent here
 *    DATA(restart_agent_result) = builder => rebuild (agent_id) => resume_from_checkpoint ( optional checkpoint ).
     " logger for logging error info
@@ -103,10 +104,8 @@ CLASS lhc_HitlReq IMPLEMENTATION.
       latest_status-status = zif_ai_types=>gc_workflow_status_running.
 
       TRY.
-          zcl_ai_agent_builder=>new( 'Restore agent' )->build_from_blueprint( zcl_ai_agent_repository=>load_agent_blueprint( agent_id ) )->run(
-            EXPORTING
-              start_node_id = node_id
-              initial_state   = latest_status
+          zcl_ai_agent_builder=>new( 'Restore agent' )->build_from_blueprint( zcl_ai_agent_repository=>load_agent_blueprint( agent_id ) )->resume_from_checkpoint(
+            checkpoint_id = latest_checkpoint_id
           ).
         CATCH cx_static_check.
           logger->log_error(

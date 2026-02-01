@@ -1,6 +1,8 @@
 @AccessControl.authorizationCheck: #NOT_REQUIRED
 @EndUserText.label: 'HITL Requests (Projection)'
-@Metadata.ignorePropagatedAnnotations: true
+@Metadata.ignorePropagatedAnnotations: false
+@Metadata.allowExtensions: true
+
 define root view entity ZC_AI_HITL_REQ_P as projection on ZC_AI_HITL_REQ
 {
     key CorrelationId,

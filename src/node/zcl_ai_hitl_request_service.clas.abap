@@ -40,21 +40,10 @@ CLASS zcl_ai_hitl_request_service IMPLEMENTATION.
           ResponseSchema     = state-hitl_response_schema
           PrimaryResultField = state-hitl_primary_field )
 
-*          %control-CorrelationId      = if_abap_behv=>mk-on
-*        %control-AgentId            = if_abap_behv=>mk-on
-*        %control-NodeId             = if_abap_behv=>mk-on
-*        %control-Topic              = if_abap_behv=>mk-on
-*        %control-Status             = if_abap_behv=>mk-on
-*        %control-Reason             = if_abap_behv=>mk-on
-*        %control-Prompt             = if_abap_behv=>mk-on
-*        %control-ResponseSchema     = if_abap_behv=>mk-on
-*        %control-PrimaryResultField = if_abap_behv=>mk-on
-
       )
       FAILED DATA(failed)
       REPORTED DATA(reported).
 
-    " TODO: add fail handling here + log
     IF failed IS NOT INITIAL.
       RAISE EXCEPTION TYPE cx_sy_no_handler.
     ENDIF.

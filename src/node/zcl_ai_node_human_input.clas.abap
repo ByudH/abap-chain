@@ -113,7 +113,7 @@ CLASS zcl_ai_node_human_input IMPLEMENTATION.
     data(config) = value ts_hitl_node_config( ).
 
     xco_cp_json=>data->from_string( configuration )->write_to( REF #( config ) ).
-
+    me->node_name = config-name.
     _topic   = config-topic.
     _reason  = config-reason.
     _prompt  = config-prompt.

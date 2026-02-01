@@ -5,37 +5,50 @@ CLASS zcl_ai_node_end DEFINITION
   CREATE PUBLIC .
 
   PUBLIC SECTION.
-  METHODS constructor
+    METHODS constructor
       IMPORTING
-        node_id  TYPE zif_ai_types=>ty_node_id
-        agent_id TYPE zif_ai_types=>ty_agent_id.
+        name TYPE string default 'End_Node'.
 
-    METHODS zif_ai_node~execute
-    REDEFINITION.
-    PROTECTED SECTION.
-    PRIVATE SECTION.
+    METHODS zif_ai_node~get_configuration REDEFINITION.
+    METHODS zif_ai_node~set_configuration REDEFINITION.
+
+  PROTECTED SECTION.
+    METHODS do_execute
+        REDEFINITION.
+
+  PRIVATE SECTION.
+    TYPES: BEGIN OF ts_end_node_config,
+             name TYPE string, " Placeholder for future configuration options
+           END OF ts_end_node_config.
 ENDCLASS.
 
 
 
 CLASS zcl_ai_node_end IMPLEMENTATION.
-METHOD constructor.
+  METHOD constructor.
     " Just call the constructor of the upper class
     super->constructor(
-      node_id  = node_id
-      agent_id = agent_id
-    ).
+      name
+      ).
   ENDMETHOD.
 
-  METHOD zif_ai_node~execute.
+  METHOD do_execute.
     " END node is basically a no operation will run further:
     " just forward the state and add an optional log message.
-    state_output = state_input.
+    APPEND VALUE zif_ai_types=>ts_message( role = zif_ai_types=>gc_role_assistant content = |END node { me->node_id } of agent { me->agent_id } reached. Execution will stop.| ) TO state-messages.
 
-    DATA(lv_msg) =
-      |END node { me->node_id } of agent { me->agent_id } reached. Execution will stop.|.
+  ENDMETHOD.
 
-    state_output-messages = state_input-messages && lv_msg.
+  METHOD zif_ai_node~get_configuration.
+    DATA config TYPE ts_end_node_config.
+    config-name = me->node_name.
+    configuration = xco_cp_json=>data->from_abap( config )->to_string( ).
+  ENDMETHOD.
+
+  METHOD zif_ai_node~set_configuration.
+    DATA config TYPE ts_end_node_config.
+    xco_cp_json=>data->from_string( configuration )->write_to( REF #( config ) ).
+    me->node_name = config-name.
   ENDMETHOD.
 
 ENDCLASS.

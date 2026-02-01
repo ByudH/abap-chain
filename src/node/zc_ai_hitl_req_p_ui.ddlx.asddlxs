@@ -1,0 +1,115 @@
+@Metadata.layer: #CORE
+@UI.headerInfo: {
+  typeName:       'HITL Request',
+  typeNamePlural: 'HITL Requests',
+  title:          { value: 'Status' },
+  description:    { value: 'CorrelationId' }
+}
+annotate entity ZC_AI_HITL_REQ_P with
+{
+  /* ===================================================== */
+  /* Facets + Action (anchored to CorrelationId)           */
+  /* ===================================================== */
+  @UI.facet: [
+    { id: 'Request',  type: #FIELDGROUP_REFERENCE, label: 'Request',  targetQualifier: 'REQUEST',  position: 10 },
+    { id: 'Response', type: #FIELDGROUP_REFERENCE, label: 'Response', targetQualifier: 'RESPONSE', position: 20 },
+    { id: 'Meta',     type: #FIELDGROUP_REFERENCE, label: 'Meta',     targetQualifier: 'META',     position: 30 }
+  ]
+  @UI.lineItem: [{
+    position:   5,
+    type:       #FOR_ACTION,
+    dataAction: 'Respond',
+    label:      'Respond',
+    importance: #HIGH
+  }]
+  CorrelationId;
+
+
+  /* ===================================================== */
+  /* Topic (hidden everywhere)                              */
+  /* ===================================================== */
+  @UI.hidden: true
+  Topic;
+
+
+  /* ===================================================== */
+  /* Status (list starts here)                              */
+  /* ===================================================== */
+  @UI.lineItem:       [{ position: 10, importance: #HIGH }]
+  @UI.selectionField: [{ position: 10 }]
+  @UI.fieldGroup:     [{ qualifier: 'META', position: 10 }]
+  Status;
+
+
+  /* ===================================================== */
+  /* Reason                                                 */
+  /* ===================================================== */
+  @UI.lineItem:       [{ position: 20, importance: #HIGH }]
+  @UI.multiLineText:  true
+  @UI.identification: [{ position: 10 }]
+  @UI.fieldGroup:     [{ qualifier: 'REQUEST', position: 10 }]
+  Reason;
+
+
+  /* ===================================================== */
+  /* Prompt                                                 */
+  /* ===================================================== */
+  @UI.lineItem:       [{ position: 30, importance: #MEDIUM }]
+  @UI.multiLineText:  true
+  @UI.identification: [{ position: 20 }]
+  @UI.fieldGroup:     [{ qualifier: 'REQUEST', position: 20 }]
+  Prompt;
+
+
+  /* ===================================================== */
+  /* CreatedAt (label + list position)                      */
+  /* ===================================================== */
+  @EndUserText.label: 'Created at'
+  @UI.lineItem:       [{ position: 40, importance: #MEDIUM }]
+  @UI.selectionField: [{ position: 30 }]
+  @UI.fieldGroup:     [{ qualifier: 'META', position: 30 }]
+  CreatedAt;
+
+
+  /* ===================================================== */
+  /* Response payload (object page: response)               */
+  /* ===================================================== */
+  @UI.lineItem:       [{ position: 50, importance: #LOW }]
+  @UI.multiLineText: true
+  @UI.fieldGroup: [{ qualifier: 'RESPONSE', position: 10 }]
+  ResponsePayload;
+
+
+  /* ===================================================== */
+  /* Schema + primary result field (object page: meta)      */
+  /* ===================================================== */
+  @UI.multiLineText: true
+  @UI.fieldGroup: [{ qualifier: 'META', position: 50 }]
+  ResponseSchema;
+
+  @UI.fieldGroup: [{ qualifier: 'META', position: 60 }]
+  PrimaryResultField;
+
+
+  /* ===================================================== */
+  /* Audit fields (object page only)                        */
+  /* ===================================================== */
+  @UI.fieldGroup: [{ qualifier: 'META', position: 40 }]
+  CreatedBy;
+
+  @UI.fieldGroup: [{ qualifier: 'META', position: 70 }]
+  RespondedAt;
+
+  @UI.fieldGroup: [{ qualifier: 'META', position: 80 }]
+  RespondedBy;
+
+
+  /* ===================================================== */
+  /* Hide UUID noise                                        */
+  /* ===================================================== */
+  @UI.hidden: true
+  AgentId;
+
+  @UI.hidden: true
+  NodeId;
+}

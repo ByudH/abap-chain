@@ -152,7 +152,7 @@ CLASS zcl_ai_agent IMPLEMENTATION.
     " first read the local cache table
     READ ENTITIES OF zc_ai_hitl_req IN LOCAL MODE
     ENTITY HitlReq
-      FIELDS ( Status ResponsePayload PrimaryResultField )
+      FIELDS ( Status ResponsePayload PrimaryResultField Prompt )
       WITH VALUE #( ( CorrelationId = state-hitl_correlation_id ) )
     RESULT DATA(hitl_records)
     FAILED DATA(read_failed).
@@ -177,6 +177,8 @@ CLASS zcl_ai_agent IMPLEMENTATION.
     IF hitl_record-PrimaryResultField IS INITIAL.
       hitl_record-PrimaryResultField = state-hitl_primary_field.
     ENDIF.
+
+
     state-branch_label = zcl_ai_orchestrator=>extract_branch_label(
       payload = hitl_record-ResponsePayload
       primary = CONV string( hitl_record-PrimaryResultField ) ).
@@ -201,6 +203,11 @@ CLASS zcl_ai_agent IMPLEMENTATION.
 *    state-branch_label = zcl_ai_orchestrator=>extract_branch_label(
 *      payload = db_payload
 *      primary = CONV string( db_primary ) ).
+
+    APPEND VALUE #(
+          role    = zif_ai_types=>gc_role_tool
+          content = |[HITL Response]  promt_to_human="{ hitl_record-Prompt  }" response_from_human={ state-hitl_response_payload }|
+        ) TO state-messages.
 
     " IMPORTANT: do not re-execute the HITL node; continue routing from it
     state-skip_current_execute = abap_true.
@@ -267,6 +274,7 @@ CLASS zcl_ai_agent IMPLEMENTATION.
       tool_blueprint-tool_name = tool_entry-tool_name.
       tool_blueprint-tool_class = tool_entry-tool_endpoint->get_tool_type( ).
       tool_blueprint-tool_description = tool_entry-tool_description.
+      tool_blueprint-configuration = tool_entry-tool_endpoint->get_configuration( ).
       APPEND tool_blueprint TO agent_blueprint-tool_registry_blueprint.
     ENDLOOP.
 

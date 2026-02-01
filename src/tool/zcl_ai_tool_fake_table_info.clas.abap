@@ -27,7 +27,7 @@ CLASS zcl_ai_tool_fake_table_info IMPLEMENTATION.
   ENDMETHOD.
 
 
-    METHOD define_argument_metadata.
+  METHOD define_argument_metadata.
     " Mock tool with sample arguments for testing related to task 1.2.6
     arguments = VALUE #(
       ( name        = 'table_name'
@@ -44,6 +44,10 @@ CLASS zcl_ai_tool_fake_table_info IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD do_execute.
-    output = |[Tool { me->name }]: Mock table info: VBAK has 10 rowns.| .
+    output =
+  |[Tool { me->name }]: Mock metadata for VBAK (Sales Document: Header)| && cl_abap_char_utilities=>newline &&
+  |Key: VBELN (Sales Doc)| && cl_abap_char_utilities=>newline &&
+  |Common fields: AUART, VKORG, VTWEG, SPART, ERDAT| && cl_abap_char_utilities=>newline &&
+  |Sensitivity: commercial data (mock).| .
   ENDMETHOD.
 ENDCLASS.

@@ -10,7 +10,7 @@ CLASS zcl_ai_agent_repository DEFINITION
       RAISING   cx_root.
     CLASS-METHODS load_agent_blueprint
       IMPORTING
-                agent_id               TYPE string
+                agent_id               TYPE zif_ai_types=>ty_agent_id
       RETURNING
                 VALUE(agent_blueprint) TYPE zif_ai_types=>ts_agent_blueprint
       RAISING   cx_root.
@@ -35,6 +35,7 @@ CLASS zcl_ai_agent_repository IMPLEMENTATION.
     IF sy-subrc <> 0.
       RAISE EXCEPTION TYPE cx_sy_open_sql_db. " Or your custom exception
     ENDIF.
+    COMMIT WORK.
   ENDMETHOD.
 
   METHOD load_agent_blueprint.
@@ -45,6 +46,7 @@ CLASS zcl_ai_agent_repository IMPLEMENTATION.
     IF sy-subrc <> 0.
       RAISE EXCEPTION TYPE cx_sy_open_sql_db. " Or your custom exception
     ENDIF.
+    agent_blueprint-agent_id = agent_def-agent_id.
     agent_blueprint-agent_name = agent_def-agent_name.
     agent_blueprint-start_node_id = agent_def-start_node_id.
     xco_cp_json=>data->from_string( agent_def-graph_json )->write_to( REF #( agent_blueprint-graph_blueprint ) ).

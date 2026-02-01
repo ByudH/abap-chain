@@ -11,14 +11,15 @@ CLASS ltzcl_ai_agent_test DEFINITION FINAL FOR TESTING
       bp_to_db_record                FOR TESTING RAISING cx_static_check.
 
     DATA:
-      blueprint  TYPE zif_ai_types=>ts_agent_blueprint,
-      agent      TYPE REF TO zcl_ai_agent,
-      tool_table TYPE REF TO zif_ai_tool,
-      tool_risk  TYPE REF TO zif_ai_tool,
-      llm_node   TYPE REF TO zcl_ai_node_llm,
-      tool_node  TYPE REF TO zcl_ai_node_tool,
+      blueprint        TYPE zif_ai_types=>ts_agent_blueprint,
+      agent            TYPE REF TO zcl_ai_agent,
+      tool_table       TYPE REF TO zif_ai_tool,
+      tool_risk        TYPE REF TO zif_ai_tool,
+      tool_weather     TYPE REF TO zif_ai_tool,
+      llm_node         TYPE REF TO zcl_ai_node_llm,
+      tool_node        TYPE REF TO zcl_ai_node_tool,
       llm_planner_node TYPE REF TO zcl_ai_node_llm_planner,
-      hitl_node  TYPE REF TO zcl_ai_node_human_input.
+      hitl_node        TYPE REF TO zcl_ai_node_human_input.
     DATA builder TYPE REF TO zcl_ai_agent_builder.
 ENDCLASS.
 
@@ -28,6 +29,7 @@ CLASS ltzcl_ai_agent_test IMPLEMENTATION.
     " (Assuming you have a simple tool class or mock available)
     tool_table = NEW zcl_ai_tool_fake_table_info( ).
     tool_risk  = NEW zcl_ai_tool_fake_risk_check( ).
+    tool_weather = NEW zcl_ai_tool_weather_info( ).
 
     " B. Create Nodes
     " --- LLM Node ---
@@ -47,13 +49,13 @@ CLASS ltzcl_ai_agent_test IMPLEMENTATION.
 
     " hitl node
     hitl_node = NEW zcl_ai_node_human_input(
-      name = 'HITL-Node'
-      topic = 'Testing Human-in-the-Loop'
+      name   = 'HITL-Node'
+      topic  = 'Testing Human-in-the-Loop'
       reason = 'Testing Human-in-the-Loop'
       prompt = 'Please provide your input to continue the process.'
     ).
 
-    data(end_node) = new zcl_ai_node_end(
+    DATA(end_node) = NEW zcl_ai_node_end(
       name = 'End-Node'
     ).
 
@@ -74,6 +76,11 @@ CLASS ltzcl_ai_agent_test IMPLEMENTATION.
                 alias       = 'risk_check'
                 description = 'Mock: risk rating'
                 tool        = tool_risk
+
+            )->add_tool(
+                alias       = 'weather_info'
+                description = 'weather information'
+                tool        = tool_weather
 
             )->connect_on_control(
                 from_node_id  = llm_node->node_id
@@ -265,8 +272,8 @@ CLASS ltzcl_ai_agent_test IMPLEMENTATION.
     " D. Check Tools Registry (Should be 2)
     cl_abap_unit_assert=>assert_equals(
       act = lines( blueprint-tool_registry_blueprint )
-      exp = 2
-      msg = 'Blueprint should contain 2 tool definitions' ).
+      exp = 3
+      msg = 'Blueprint should contain 3 tool definitions' ).
 
     READ TABLE blueprint-tool_registry_blueprint INTO DATA(bp_tool_search) WITH KEY tool_name = 'table_info'.
     cl_abap_unit_assert=>assert_subrc( msg = 'Search tool must be in blueprint' ).
@@ -390,9 +397,9 @@ CLASS ltzcl_ai_agent_test IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD bp_to_db_record.
-    data(agent_blueprint) = agent->get_agent_blueprint( ).
+    DATA(agent_blueprint) = agent->get_agent_blueprint( ).
     zcl_ai_agent_repository=>save_agent_blueprint( agent_blueprint ).
-    data(loaded_blueprint) = zcl_ai_agent_repository=>load_agent_blueprint( agent_id = agent_blueprint-agent_id ).
+    DATA(loaded_blueprint) = zcl_ai_agent_repository=>load_agent_blueprint( agent_id = agent_blueprint-agent_id ).
     cl_abap_unit_assert=>assert_equals(
       act = loaded_blueprint
       exp = agent_blueprint

@@ -29,6 +29,10 @@ CLASS zcl_ai_tool_base DEFINITION
     DATA description TYPE string.
 
   PRIVATE SECTION.
+    TYPES: BEGIN OF ts_tool_config,
+             name        TYPE string,
+             description TYPE string,
+           END OF ts_tool_config.
 ENDCLASS.
 
 CLASS zcl_ai_tool_base IMPLEMENTATION.
@@ -99,6 +103,24 @@ CLASS zcl_ai_tool_base IMPLEMENTATION.
     " Default: no arguments
     " Subclasses override this to define their arguments
     CLEAR arguments.
+  ENDMETHOD.
+
+  METHOD zif_ai_tool~get_configuration.
+    DATA config TYPE ts_tool_config.
+
+    config-name = me->name.
+    config-description = me->description.
+
+    configuration = xco_cp_json=>data->from_abap( config )->to_string( ).
+  ENDMETHOD.
+
+  METHOD zif_ai_tool~set_configuration.
+    DATA config TYPE ts_tool_config.
+
+    xco_cp_json=>data->from_string( configuration )->write_to( REF #( config ) ).
+
+    me->name = config-name.
+    me->description = config-description.
   ENDMETHOD.
 
 ENDCLASS.

@@ -12,28 +12,33 @@ authorization master ( instance )
   update;
 
   mapping for zai_hitl_req
-  {
-    CorrelationId      = correlation_id;
-    AgentId            = agent_id;
-    NodeId             = node_id;
-    Topic              = topic;
-    Status             = status;
-    Reason             = reason;
-    Prompt             = prompt;
-    ResponseSchema     = response_schema;
-    PrimaryResultField = primary_result_field;
-    ResponsePayload    = response_payload;
-
-    CreatedAt          = created_at;
-    CreatedBy          = created_by;
-    RespondedAt        = responded_at;
-    RespondedBy        = responded_by;
-  }
+    {
+      CorrelationId      = correlation_id;
+      AgentId            = agent_id;
+      NodeId             = node_id;
+      Topic              = topic;
+      Status             = status;
+      Reason             = reason;
+      Prompt             = prompt;
+      ResponseSchema     = response_schema;
+      PrimaryResultField = primary_result_field;
+      ResponsePayload    = response_payload;
+      CreatedAt          = created_at;
+      CreatedBy          = created_by;
+      RespondedAt        = responded_at;
+      RespondedBy        = responded_by;
+    }
 
   determination set_created_audit on modify { create; }
   determination set_responded_meta on modify { field Status; }
 
   action Respond parameter ZA_AI_HITL_RESPONSE;
+
+  side effects
+  {
+    action Respond affects $self;
+  }
+
 
   event HumanInputRequested parameter ZA_AI_HITL_REQUESTED;
 

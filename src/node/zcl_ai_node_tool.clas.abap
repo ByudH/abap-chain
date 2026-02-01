@@ -10,7 +10,7 @@ CLASS zcl_ai_node_tool DEFINITION
 
     METHODS constructor
       IMPORTING
-        name          TYPE string
+        name          TYPE string DEFAULT 'Tool_Node'
         max_retries   TYPE i DEFAULT 2
         retry_delay_s TYPE i DEFAULT 0.
 
@@ -41,15 +41,8 @@ CLASS zcl_ai_node_tool DEFINITION
            END OF ts_tool_node_config.
 
 
-     METHODS parse_tool_arguments_json "Indri"
-      IMPORTING
-        json_string TYPE string
-      RETURNING
-        VALUE(arguments) TYPE zcl_tool_schema=>tt_tool_arguments
-      RAISING
-        zcx_ai_tool_error.  "Indri"
-
 ENDCLASS.
+
 
 
 CLASS zcl_ai_node_tool IMPLEMENTATION.
@@ -78,80 +71,6 @@ CLASS zcl_ai_node_tool IMPLEMENTATION.
       tool = entry-tool_endpoint.
     ENDIF.
   ENDMETHOD.
-
-  METHOD parse_tool_arguments_json.   "Indri"
-  " Convert JSON string from LLM into structured argument table
-
-  IF json_string IS INITIAL OR json_string = '{}'.
-    " Empty arguments - return empty table
-    CLEAR arguments.
-    RETURN.
-  ENDIF.
-
-  TRY.
-      " Deserialize JSON into dynamic structure
-      DATA json_data TYPE REF TO data.
-
-      /ui2/cl_json=>deserialize(
-        EXPORTING
-          json = json_string
-          pretty_name = /ui2/cl_json=>pretty_mode-none
-        CHANGING
-          data = json_data ).
-
-      " Convert structure fields to argument table
-      FIELD-SYMBOLS: <struct> TYPE any,
-                     <field>  TYPE any.
-
-      ASSIGN json_data->* TO <struct>.
-
-      IF <struct> IS ASSIGNED.
-        " Get structure components
-        DATA(type_descr) = cl_abap_typedescr=>describe_by_data( <struct> ).
-
-        IF type_descr->kind = cl_abap_typedescr=>kind_struct.
-          DATA(struct_descr) = CAST cl_abap_structdescr( type_descr ).
-
-          " Loop through all fields in the JSON structure
-          LOOP AT struct_descr->components INTO DATA(component).
-            ASSIGN COMPONENT component-name OF STRUCTURE <struct> TO <field>.
-
-            IF sy-subrc = 0.
-              " Convert field value to string - handle references properly
-              DATA field_value TYPE string.
-
-              " Check if field is a reference
-              DATA(field_type) = cl_abap_typedescr=>describe_by_data( <field> ).
-              IF field_type->kind = cl_abap_typedescr=>kind_ref.
-                " Dereference and convert
-                FIELD-SYMBOLS <deref> TYPE any.
-                ASSIGN <field>->* TO <deref>.
-                IF <deref> IS ASSIGNED.
-                  field_value = |{ <deref> }|.
-                ELSE.
-                  field_value = ''.
-                ENDIF.
-              ELSE.
-                " Direct conversion for elementary types
-                field_value = |{ <field> }|.
-              ENDIF.
-
-              INSERT VALUE #(
-                name = to_lower( component-name )
-                description = field_value
-                type = 'string'  " Type inference could be added
-              ) INTO TABLE arguments.
-            ENDIF.
-          ENDLOOP.
-        ENDIF.
-      ENDIF.
-
-    CATCH cx_root INTO DATA(parse_ex).
-      RAISE EXCEPTION TYPE zcx_ai_tool_error
-        EXPORTING
-          error_message = |Failed to parse tool arguments JSON: { parse_ex->get_text( ) }|.
-  ENDTRY.
-ENDMETHOD.  "Indri"
 
 
   METHOD execute_tool_with_retry.
@@ -236,95 +155,92 @@ ENDMETHOD.  "Indri"
 
     DATA(tool_metadata_args) = tool_entry-tool_endpoint->get_argument_metadata( ). "Indri"
 
-      TRY.
-      logger->log_node(
-        node_id   = me->node_id
-        node_name = node_name
-        message   = |Tool "{ tool_entry-tool_name }" has { lines( tool_metadata_args ) } arguments defined|
-        severity  = if_bali_constants=>c_severity_information ).
-    CATCH cx_root.
-  ENDTRY.  "Indri"
+    TRY.
+        logger->log_node(
+          node_id   = me->node_id
+          node_name = node_name
+          message   = |Tool "{ tool_entry-tool_name }" has { lines( tool_metadata_args ) } arguments defined|
+          severity  = if_bali_constants=>c_severity_information ).
+      CATCH cx_root.
+    ENDTRY.
 
     "TRY.
-      "  logger->log_node(
-       "   node_id  = me->node_id
-       "  node_name = node_name
-        "  message  = |Executing tool "{ tool_entry-tool_name }" with retry.|
-       "   severity = if_bali_constants=>c_severity_status ).
-     " CATCH cx_root.
-   " ENDTRY.
+    "  logger->log_node(
+    "   node_id  = me->node_id
+    "  node_name = node_name
+    "  message  = |Executing tool "{ tool_entry-tool_name }" with retry.|
+    "   severity = if_bali_constants=>c_severity_status ).
+    " CATCH cx_root.
+    " ENDTRY.
 
-   TRY.
-    logger->log_node(
-      node_id   = me->node_id
-      node_name = node_name
-      message   = |DEBUG: tool_arguments="{ state-tool_arguments }" length={ strlen( state-tool_arguments ) }|
-      severity  = if_bali_constants=>c_severity_information ).
-  CATCH cx_root.
-ENDTRY.
-
-    IF tool_metadata_args IS NOT INITIAL AND state-tool_arguments IS NOT INITIAL.  "Indri"
     TRY.
-        " Build complete metadata structure
-        DATA(tool_metadata) = VALUE zcl_tool_schema=>ty_tool_metadata(
-          name = tool_entry-tool_name
-          description = tool_entry-tool_description
-          arguments = tool_metadata_args
-        ).
-
-        " Parse JSON arguments from LLM
-        DATA(provided_args) = parse_tool_arguments_json( state-tool_arguments ).
-
-        TRY.
-            logger->log_node(
-              node_id   = me->node_id
-              node_name = node_name
-              message   = |Validating { lines( provided_args ) } provided arguments|
-              severity  = if_bali_constants=>c_severity_information ).
-          CATCH cx_root.
-        ENDTRY.
-
-        " Validate arguments against schema
-        zcl_tool_schema=>validate_input(
-          tool_metadata = tool_metadata
-          is_input = provided_args
-        ).
-
-        TRY.
-            logger->log_node(
-              node_id   = me->node_id
-              node_name = node_name
-              message   = |Arguments validated successfully|
-              severity  = if_bali_constants=>c_severity_status ).
-          CATCH cx_root.
-        ENDTRY.
-
-      CATCH zcx_ai_tool_error INTO DATA(validation_ex).
-        " Argument validation failed
-        TRY.
-            logger->log_error(
-              message = |Argument validation failed: { validation_ex->get_text( ) }| ).
-          CATCH cx_root.
-        ENDTRY.
-
-        APPEND VALUE #(
-          role = zif_ai_types=>gc_role_error
-          content = |[ToolNode] Argument validation failed for { tool_entry-tool_name }: { validation_ex->get_text( ) }|
-        ) TO state-messages.
-
-        state-branch_label = 'END'.
-        RETURN.
+        logger->log_node(
+          node_id   = me->node_id
+          node_name = node_name
+          message   = |DEBUG: tool_arguments="{ state-tool_arguments }" length={ strlen( state-tool_arguments ) }|
+          severity  = if_bali_constants=>c_severity_information ).
+      CATCH cx_root.
     ENDTRY.
-  ENDIF.  "Indri"
+
+    IF tool_metadata_args IS NOT INITIAL AND state-tool_arguments IS NOT INITIAL.
+      TRY.
+          " Build complete metadata structure
+          DATA(tool_metadata) = VALUE zcl_tool_argument_validator=>ty_tool_metadata(
+              name        = tool_entry-tool_name
+              description = tool_entry-tool_description
+              fields      = tool_metadata_args
+          ).
+
+          TRY.
+              logger->log_node(
+                node_id   = me->node_id
+                node_name = node_name
+                message   = |Validating tool arguments against schema|
+                severity  = if_bali_constants=>c_severity_information ).
+            CATCH cx_root.
+          ENDTRY.
+
+          " Validate arguments (parses JSON + validates in one call)
+          DATA(validated_args) = zcl_tool_argument_validator=>validate_tool_input(
+            tool_metadata  = tool_metadata
+            tool_arguments = state-tool_arguments
+          ).
+
+          TRY.
+              logger->log_node(
+                node_id   = me->node_id
+                node_name = node_name
+                message   = |Arguments validated successfully: { lines( validated_args ) } args|
+                severity  = if_bali_constants=>c_severity_status ).
+            CATCH cx_root.
+          ENDTRY.
+
+        CATCH zcx_schema_validation INTO DATA(validation_ex).
+          " Argument validation failed
+          TRY.
+              logger->log_error(
+                message = |Argument validation failed: { validation_ex->error_message }| ).
+            CATCH cx_root.
+          ENDTRY.
+
+          APPEND VALUE #(
+            role    = zif_ai_types=>gc_role_error
+            content = |[ToolNode] Argument validation failed for { tool_entry-tool_name }: { validation_ex->error_message }|
+          ) TO state-messages.
+
+          state-branch_label = 'END'.
+          RETURN.
+      ENDTRY.
+    ENDIF.  "Indri"
 
     TRY.
-      logger->log_node(
-        node_id  = me->node_id
-        node_name = node_name
-        message  = |Executing tool "{ tool_entry-tool_name }" with retry.|
-        severity = if_bali_constants=>c_severity_status ).
-    CATCH cx_root.
-  ENDTRY.
+        logger->log_node(
+          node_id   = me->node_id
+          node_name = node_name
+          message   = |Executing tool "{ tool_entry-tool_name }" with retry.|
+          severity  = if_bali_constants=>c_severity_status ).
+      CATCH cx_root.
+    ENDTRY.
 
 
     DATA tool_output TYPE string.

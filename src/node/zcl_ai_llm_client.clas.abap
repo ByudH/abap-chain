@@ -34,18 +34,21 @@ CLASS zcl_ai_llm_client IMPLEMENTATION.
     ENDTRY.
 
     TRY.
-        " 2) Build message container
-        FINAL(lo_msg) = lo_api->create_message_container( ).
+*        " 2) Build message container
+*        FINAL(lo_msg) = lo_api->create_message_container( ).
+*
+*        IF iv_system_prompt IS NOT INITIAL.
+*          lo_msg->set_system_role( iv_system_prompt ).
+*        ENDIF.
+*
+*        lo_msg->add_user_message( iv_user_prompt ).
+*
+*
+*        " 3) Execute & get completion
+*        lv_output = lo_api->execute_for_messages( lo_msg )->get_completion( ).
 
-        IF iv_system_prompt IS NOT INITIAL.
-          lo_msg->set_system_role( iv_system_prompt ).
-        ENDIF.
-
-        lo_msg->add_user_message( iv_user_prompt ).
-
-        " 3) Execute & get completion
-        lv_output = lo_api->execute_for_messages( lo_msg )->get_completion( ).
-
+        DATA(full_prompt) = | { iv_system_prompt }\n\n{ iv_user_prompt } |.
+        lv_output = lo_api->execute_for_string( full_prompt )->get_completion( ).
       CATCH cx_aic_completion_api INTO DATA(lx_completion).
         RAISE EXCEPTION NEW zcx_ai_agent_error( error_id = zcx_ai_agent_error=>api_error
                                                 severity = zif_ai_types=>gc_severity_fatal
