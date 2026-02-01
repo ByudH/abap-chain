@@ -5,10 +5,12 @@ CLASS ltcl_node_llm DEFINITION FINAL FOR TESTING
 
   PRIVATE SECTION.
     METHODS:
-      verify_node_type FOR TESTING.
+      verify_node_type          FOR TESTING.
+
 ENDCLASS.
 
 CLASS ltcl_node_llm IMPLEMENTATION.
+
 
   METHOD verify_node_type.
     " 1. GIVEN: Create the instance
