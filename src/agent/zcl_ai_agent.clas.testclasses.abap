@@ -18,7 +18,7 @@ CLASS ltzcl_ai_agent_test DEFINITION FINAL FOR TESTING
       tool_weather     TYPE REF TO zif_ai_tool,
       llm_node         TYPE REF TO zcl_ai_node_llm,
       tool_node        TYPE REF TO zcl_ai_node_tool,
-      llm_planner_node TYPE REF TO zcl_ai_node_llm_planner,
+      llm_planner_node TYPE REF TO zcl_ai_node_planner,
       hitl_node        TYPE REF TO zcl_ai_node_human_input.
     DATA builder TYPE REF TO zcl_ai_agent_builder.
 ENDCLASS.
@@ -43,7 +43,7 @@ CLASS ltzcl_ai_agent_test IMPLEMENTATION.
     ).
 
     " LLM planner node
-    llm_planner_node = NEW zcl_ai_node_llm_planner(
+    llm_planner_node = NEW zcl_ai_node_planner(
       name = 'LLM-Planner-Node'
     ).
 

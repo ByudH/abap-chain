@@ -1,4 +1,4 @@
-CLASS zcl_ai_node_llm_planner DEFINITION
+CLASS zcl_ai_node_planner DEFINITION
   PUBLIC
   INHERITING FROM zcl_ai_node_base
   FINAL
@@ -51,7 +51,7 @@ ENDCLASS.
 
 
 
-CLASS zcl_ai_node_llm_planner IMPLEMENTATION.
+CLASS zcl_ai_node_planner IMPLEMENTATION.
 
   METHOD constructor.
     super->constructor( node_name = name ).

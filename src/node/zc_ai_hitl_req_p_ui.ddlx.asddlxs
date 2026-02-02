@@ -84,6 +84,7 @@ annotate entity ZC_AI_HITL_REQ_P with
   /* Schema + primary result field (object page: meta)      */
   /* ===================================================== */
   @UI.multiLineText: true
+   @UI.lineItem:       [{ position: 50, importance: #MEDIUM }]
   @UI.fieldGroup: [{ qualifier: 'META', position: 50 }]
   ResponseSchema;
 
