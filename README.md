@@ -98,7 +98,7 @@ Instead of hard-coding all routing logic in ABAP, a planner node can decide whic
 
 The planner produces a structured decision (for example a branch label), which the orchestrator uses to continue execution.
 
-``àbap
+```abap
 DATA(planner_node) = NEW zcl_ai_node_llm_planner( ).
 
 builder
