@@ -90,6 +90,26 @@ METHOD run_weather_agent.
   out->write( zcl_ai_utils=>messages_to_string( final_state-messages ) ).
 ENDMETHOD.
 ```
+## 🧠 LLM-Driven Planner Node (Optional)
+
+ABAPChain optionally supports LLM-driven planning through a dedicated planner node.
+
+Instead of hard-coding all routing logic in ABAP, a planner node can decide which branch of the graph to execute next based on the current state, messages, and context. This enables dynamic workflows such as conditional routing, tool gating, and human-in-the-loop approvals.
+
+The planner produces a structured decision (for example a branch label), which the orchestrator uses to continue execution.
+
+``àbap
+DATA(planner_node) = NEW zcl_ai_node_llm_planner( ).
+
+builder
+  ->add_node( planner_node )
+  ->connect_on_branch(
+       from_node_id = planner_node->node_id
+       branch_label = 'TOOL'
+       to_node_id   = tool_node->node_id
+   ).
+```
+Using a llm planner node is optional.
 
 ## 🔌 Extensibility Guide
 
